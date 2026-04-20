@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { BiChevronLeft } from "react-icons/bi";
-import { login } from "../assets/image/auth";
+import { login } from "@/app/assets/image/auth";
+
 
 type AuthLayoutProps = Readonly<{
   children: ReactNode;
