@@ -2,24 +2,26 @@
 
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { useMemo } from "react";
 import { BiMap, BiMapPin } from "react-icons/bi";
-
-import type { NearbyShop } from "./home-data";
-import { toMapPlaces } from "./home-api";
 
 const GoongMap = dynamic(() => import("../../../components/GoongMap"), {
   ssr: false,
 });
 
+type Coordinates = {
+  lat: number;
+  lng: number;
+};
+
 interface MapPanelProps {
-  shops: NearbyShop[];
-  locationLabel: string;
+  location: Coordinates | null;
 }
 
-export default function MapPanel({ shops, locationLabel }: MapPanelProps) {
-  const places = useMemo(() => toMapPlaces(shops), [shops]);
-  const visibleMapPoints = useMemo(() => shops.slice(0, 6), [shops]);
+export default function MapPanel({ location, address }: MapPanelProps & { address: string }) {
+  const hasValidLocation = (
+    value: Coordinates | null,
+  ): value is Coordinates =>
+    value !== null && Number.isFinite(value.lat) && Number.isFinite(value.lng);
 
   return (
     <motion.div
@@ -37,24 +39,26 @@ export default function MapPanel({ shops, locationLabel }: MapPanelProps) {
 
         <div className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-stone-600 shadow-sm">
           <BiMapPin className="text-primary" />
-          <span className="max-w-45 truncate">{locationLabel}</span>
+          <span>
+            {address}
+          </span>
         </div>
       </div>
 
       <div className="relative h-90 bg-primary-soft md:h-155">
-        {places.length > 0 ? (
-          <GoongMap places={places} />
+        {hasValidLocation(location) ? (
+          <GoongMap location={location} />
         ) : (
           <div className="flex h-full items-center justify-center px-6 text-center">
             <div>
               <BiMap className="mx-auto mb-3 text-4xl text-accent" />
-              <p className="text-sm font-medium text-dark">Chưa có dữ liệu bản đồ</p>
+              <p className="text-sm font-medium text-dark">
+                Chưa lấy được vị trí hiện tại
+              </p>
             </div>
           </div>
         )}
       </div>
-
-      
     </motion.div>
   );
 }

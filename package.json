@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:https": "next dev --experimental-https --hostname 0.0.0.0",
+    "dev:stop": "pkill -f \"food-client/node_modules/.bin/next dev\" || true",
+    "dev:restart": "npm run dev:stop && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -25,6 +28,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/mapbox-gl": "^3.4.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

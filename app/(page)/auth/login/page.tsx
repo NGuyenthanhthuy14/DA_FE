@@ -1,7 +1,33 @@
+"use client";
+import { useUser } from "@/app/hook/useUser";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BiLockAlt, BiMailSend, BiUserCircle } from "react-icons/bi";
+import { toast } from "sonner";
 
 export default function LoginPage() {
+  const { loginHook } = useUser();
+  const route = useRouter();
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+
+    const formData = new FormData(e.currentTarget);
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+    try {
+       await loginHook({ email, password });
+       form.reset();
+       route.push("/");
+       toast.success("Đăng nhập thành công!");
+    }
+    catch (error) {
+      console.error("Login failed:", error);
+      toast.error("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
+
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center gap-3">
@@ -16,7 +42,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <form className="mt-7 space-y-4">
+      <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
         <div>
           <label
             htmlFor="email"
@@ -29,6 +55,7 @@ export default function LoginPage() {
             <input
               id="email"
               type="email"
+              name="email"
               placeholder="ban@example.com"
               className="h-11 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/45"
             />
@@ -47,6 +74,7 @@ export default function LoginPage() {
             <input
               id="password"
               type="password"
+              name="password"
               placeholder="Nhập mật khẩu"
               className="h-11 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-foreground/45"
             />

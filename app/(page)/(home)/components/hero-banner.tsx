@@ -1,33 +1,20 @@
 "use client";
 
-import {
-  heroCategories as fallbackCategories,
-  nearbyShops as fallbackNearbyShops,
-  type HeroCategory,
-  type NearbyShop,
-} from "./home-data";
 import CategoryPanel from "./category-panel";
 import MapPanel from "./map-panel";
 
-type GeoState = "locating" | "ready" | "denied" | "unsupported" | "error";
-
-interface HeroBannerProps {
-  categories?: HeroCategory[];
-  shops?: NearbyShop[];
-  locationLabel?: string;
-  geoState?: GeoState;
-  geoMessage?: string | null;
-  isLoading?: boolean;
-}
+type Coordinates = {
+  lat: number;
+  lng: number;
+};
 
 export default function HeroBanner({
-  categories = [],
-  shops = [],
-  locationLabel = "Ba Vì, Hà Nội",
-}: HeroBannerProps) {
-  const safeCategories =
-    categories.length > 0 ? categories : fallbackCategories;
-  const safeShops = shops.length > 0 ? shops : fallbackNearbyShops;
+  location,
+  address,
+}: {
+  location: Coordinates | null;
+  address: string;
+}) {
 
   return (
     <section className="relative overflow-hidden">
@@ -39,8 +26,8 @@ export default function HeroBanner({
 
       <div className="relative ">
         <div className="flex">
-          <MapPanel shops={safeShops} locationLabel={locationLabel} />
-          <CategoryPanel categories={safeCategories} />
+          <MapPanel location={location} address={address} />
+          {/* <CategoryPanel categories={safeCategories} /> */}
         </div>
       </div>
     </section>

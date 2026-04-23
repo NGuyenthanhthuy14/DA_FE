@@ -8,12 +8,13 @@ import { useDispatch } from "react-redux";
 import { BiLockAlt, BiMailSend, BiPhone, BiUser } from "react-icons/bi";
 import { registerThunk } from "@/app/action/authAction";
 import type { AppDispatch } from "@/app/store";
+import { useUser } from "@/app/hook/useUser";
 
 export default function RegisterPage() {
-  const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const { registerHook } = useUser();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -35,15 +36,13 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      await dispatch(
-        registerThunk({
-          full_name: fullName,
-          email,
-          phone,
-          password,
-          confirmPassword,
-        })
-      ).unwrap();
+      await registerHook({
+        full_name: fullName,
+        email,
+        phone,
+        password,
+        confirmPassword,
+      });
 
       form.reset(); 
       router.push("/auth/login");

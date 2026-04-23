@@ -9,8 +9,8 @@ import {
   selectUser,
 } from "@/app/store/slices/userSlices";
 import { useCallback } from "react";
-import { registerThunk } from "../action/authAction";
-import { RegisterRequest } from "../types/api/auth";
+import { loginThunk, logoutThunk, registerThunk } from "../action/authAction";
+import { LoginRequest, RegisterRequest } from "../types/api/auth";
 
 export function useUser() {
   const dispatch = useDispatch<AppDispatch>();
@@ -22,12 +22,24 @@ export function useUser() {
   const isHydrated = useSelector(selectIsHydrated);
   const error = useSelector(selectAuthError);
 
-	const register = useCallback(
-		async (payload: RegisterRequest) => {
-			await dispatch(registerThunk(payload));
-		},
-		[dispatch]	
-	)
+  const registerHook = useCallback(
+    async (payload: RegisterRequest) => {
+      const result = await dispatch(registerThunk(payload)).unwrap();
+      return result;
+    },
+    [dispatch]
+  );
+  const loginHook = useCallback(
+    async (payload: LoginRequest) => {
+      const result = await dispatch(loginThunk(payload)).unwrap();
+      return result;
+    },
+    [dispatch]
+  );
+  const logoutHook = useCallback(async () => {
+    const result = await dispatch(logoutThunk()).unwrap();
+    return result;
+  }, [dispatch]);
 
   return {
     dispatch,
@@ -37,6 +49,8 @@ export function useUser() {
     isLoading,
     isHydrated,
     error,
-    register,
+    registerHook,
+    loginHook,
+    logoutHook,
   };
 }

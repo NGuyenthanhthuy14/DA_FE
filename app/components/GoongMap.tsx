@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import "@goongmaps/goong-js/dist/goong-js.css";
 
-type Place = {
-  id: string;
-  name: string;
+type Coordinates = {
   lat: number;
   lng: number;
 };
@@ -29,10 +27,10 @@ type MarkerInstance = {
 };
 
 interface GoongMapProps {
-  places: Place[];
+  location: Coordinates;
 }
 
-export default function GoongMap({ places }: GoongMapProps) {
+export default function GoongMap({ location }: GoongMapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<MapInstance | null>(null);
   const markersRef = useRef<MarkerInstance[]>([]);
@@ -53,6 +51,7 @@ export default function GoongMap({ places }: GoongMapProps) {
           console.error(missingKeyMsg);
           return;
         }
+
         setMapError(null);
 
         const goongModule = await import("@goongmaps/goong-js");
@@ -62,17 +61,14 @@ export default function GoongMap({ places }: GoongMapProps) {
 
         goongjs.accessToken = mapKey;
 
-        const center: [number, number] =
-          places.length > 0
-            ? [places[0].lng, places[0].lat]
-            : [105.83991, 21.028];
+        const center: [number, number] = [location.lng, location.lat];
 
         if (!mapInstanceRef.current) {
           mapInstanceRef.current = new goongjs.Map({
             container: mapRef.current,
             style: `https://tiles.goong.io/assets/goong_map_web.json?api_key=${mapKey}`,
             center,
-            zoom: 13,
+            zoom: 15,
             transformRequest: (url: string) => {
               if (url.includes("tiles.goong.io") && !url.includes("api_key=")) {
                 const separator = url.includes("?") ? "&" : "?";
@@ -91,7 +87,7 @@ export default function GoongMap({ places }: GoongMapProps) {
             const status = event?.error?.status || event?.status;
             if (status === 403) {
               setMapError(
-                "Goong trả về 403. Hãy kiểm tra lại API key và domain được whitelist trên Goong Console (ví dụ: localhost).",
+                "Goong trả về 403. Hãy kiểm tra lại API key và domain được whitelist trên Goong Console.",
               );
             }
           });
@@ -102,14 +98,12 @@ export default function GoongMap({ places }: GoongMapProps) {
         markersRef.current.forEach((marker) => marker.remove());
         markersRef.current = [];
 
-        places.forEach((place) => {
-          const marker = new goongjs.Marker()
-            .setLngLat([place.lng, place.lat])
-            .setPopup(new goongjs.Popup({ offset: 25 }).setText(place.name))
-            .addTo(mapInstanceRef.current) as MarkerInstance;
+        const userMarker = new goongjs.Marker({ color: "red" })
+          .setLngLat([location.lng, location.lat])
+          .setPopup(new goongjs.Popup({ offset: 25 }).setText("Bạn đang ở đây"))
+          .addTo(mapInstanceRef.current) as MarkerInstance;
 
-          markersRef.current.push(marker);
-        });
+        markersRef.current.push(userMarker);
       } catch (error) {
         setMapError(
           "Không tải được bản đồ Goong. Kiểm tra kết nối mạng, API key và cấu hình domain.",
@@ -118,7 +112,7 @@ export default function GoongMap({ places }: GoongMapProps) {
       }
     };
 
-    initMap();
+    void initMap();
 
     return () => {
       isMounted = false;
@@ -130,7 +124,7 @@ export default function GoongMap({ places }: GoongMapProps) {
         mapInstanceRef.current = null;
       }
     };
-  }, [places]);
+  }, [location]);
 
   if (mapError) {
     return (

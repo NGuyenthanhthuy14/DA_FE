@@ -2,7 +2,8 @@
 
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { AUTH_STATUS, AuthStatus } from "@/app/constants/auth";
-import { registerThunk } from "@/app/action/authAction";
+import { loginThunk, logoutThunk, registerThunk } from "@/app/action/authAction";
+import { UserRole } from "@/app/types/api/auth";
 
 // ============================================================
 // Types
@@ -10,15 +11,17 @@ import { registerThunk } from "@/app/action/authAction";
 
 export interface User {
   id: string;
-  name: string;
+  full_name: string;
   email: string;
-  phone?: string;
-  dob?: string;
-  avatarUrl?: string;
+  phone: string | null;
+  role: UserRole;
+  avatarUrl?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface UpdateProfilePayload {
-  name: string;
+  full_name: string;
   email: string;
 }
 
@@ -27,6 +30,7 @@ export interface UserState {
   status: AuthStatus;
   isHydrated: boolean;
   error: string | null;
+
 }
 
 // ============================================================
@@ -38,6 +42,7 @@ const initialState: UserState = {
   status: AUTH_STATUS.IDLE,
   isHydrated: false,
   error: null,
+
 };
 
 // ============================================================
@@ -113,15 +118,43 @@ const userSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(registerThunk.pending, (state) => {
-        state.status = "loading";
+        state.status = AUTH_STATUS.LOADING;
         state.error = null;
       })
       .addCase(registerThunk.fulfilled, (state) => {
-        state.status = "idle";
+        state.status = AUTH_STATUS.IDLE;
+        state.error = null;
       })
       .addCase(registerThunk.rejected, (state, action) => {
-        state.status = "unauthenticated";
+        state.status = AUTH_STATUS.UNAUTHENTICATED;
         state.error = action.payload || "Đăng ký thất bại";
+      })
+      .addCase(loginThunk.pending, (state) => {
+        state.status = AUTH_STATUS.LOADING;
+        state.error = null;
+      })
+      .addCase(loginThunk.fulfilled, (state, action) => {
+        state.status = AUTH_STATUS.AUTHENTICATED;
+        state.user = action.payload.user;
+        state.error = null;
+      })
+      .addCase(loginThunk.rejected, (state, action) => {
+        state.status = AUTH_STATUS.UNAUTHENTICATED;
+        state.user = null;
+        state.error = action.payload || "Đăng nhập thất bại";
+      })
+      .addCase(logoutThunk.pending, (state) => {
+        state.status = AUTH_STATUS.LOADING;
+      })
+      .addCase(logoutThunk.fulfilled, (state) => {
+        state.status = AUTH_STATUS.UNAUTHENTICATED;
+        state.user = null;
+        state.error = null;
+      })
+      .addCase(logoutThunk.rejected, (state) => {
+        state.status = AUTH_STATUS.UNAUTHENTICATED;
+        state.user = null;
+        state.error = null;
       });
   },
 });
@@ -131,10 +164,10 @@ const userSlice = createSlice({
 // ============================================================
 
 export const selectUser = (state: { user: UserState }) => state.user.user;
+export const selectIsAuthenticated = (state: { user: UserState }) =>
+  !!state.user.user;
 export const selectAuthStatus = (state: { user: UserState }) =>
   state.user.status;
-export const selectIsAuthenticated = (state: { user: UserState }) =>
-  state.user.status === AUTH_STATUS.AUTHENTICATED;
 export const selectIsLoading = (state: { user: UserState }) =>
   state.user.status === AUTH_STATUS.LOADING;
 export const selectIsHydrated = (state: { user: UserState }) =>

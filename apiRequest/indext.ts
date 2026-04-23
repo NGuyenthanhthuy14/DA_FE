@@ -67,7 +67,7 @@ api.interceptors.response.use(
             } catch (error) {
                 console.error("lỗi RFToken", error);
                 localStorage.removeItem("accessToken");
-                // window.location.href = "/login";
+                window.location.href = "/auth/login";
             }
         }
         return Promise.reject(formatError(error));

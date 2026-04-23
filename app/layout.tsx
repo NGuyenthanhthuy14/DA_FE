@@ -1,5 +1,6 @@
 import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
+import "mapbox-gl/dist/mapbox-gl.css";
 import Footer from "./components/layout/footer";
 import Navbar from "./components/layout/navbar";
 import { Toaster } from "@/components/ui/sonner";
