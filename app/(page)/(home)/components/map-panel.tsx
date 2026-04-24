@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { BiMap, BiMapPin } from "react-icons/bi";
+import { useShopAPI } from "@/app/services/useShop";
 
 const GoongMap = dynamic(() => import("../../../components/GoongMap"), {
   ssr: false,
@@ -22,6 +23,8 @@ export default function MapPanel({ location, address }: MapPanelProps & { addres
     value: Coordinates | null,
   ): value is Coordinates =>
     value !== null && Number.isFinite(value.lat) && Number.isFinite(value.lng);
+
+    const { shop } = useShopAPI();
 
   return (
     <motion.div
@@ -47,7 +50,7 @@ export default function MapPanel({ location, address }: MapPanelProps & { addres
 
       <div className="relative h-90 bg-primary-soft md:h-155">
         {hasValidLocation(location) ? (
-          <GoongMap location={location} />
+          <GoongMap location={location} shops={shop?.metadata || []} />
         ) : (
           <div className="flex h-full items-center justify-center px-6 text-center">
             <div>

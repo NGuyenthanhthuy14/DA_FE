@@ -62,3 +62,184 @@ body {
         max-width: 1280px;
     }
 }
+
+/* Goong map popup */
+.shop-map-popup .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid #fcd34d;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(120, 53, 15, 0.18);
+}
+
+.shop-map-popup .mapboxgl-popup-close-button {
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid #fde68a;
+  background: rgba(255, 251, 235, 0.96);
+  color: #78350f;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.shop-map-popup .mapboxgl-popup-close-button:hover {
+  background: #fef3c7;
+}
+
+.shop-map-popup-card {
+  width: min(300px, 80vw);
+  color: #78350f;
+  background: linear-gradient(180deg, #fffaf0 0%, #ffffff 68%);
+  font-family: "Be Vietnam Pro", sans-serif;
+}
+
+.shop-map-popup-card__media {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  background: #fff8e7;
+}
+
+.shop-map-popup-card__media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(120, 53, 15, 0.02) 22%,
+    rgba(120, 53, 15, 0.24) 100%
+  );
+  pointer-events: none;
+}
+
+.shop-map-popup-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.shop-map-popup-card__status {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  z-index: 1;
+}
+
+.shop-map-popup-card__status.is-active {
+  background: #92400e;
+  color: #fff;
+}
+
+.shop-map-popup-card__status.is-inactive {
+  background: #ffedd5;
+  color: #9a3412;
+  border: 1px solid #fdba74;
+}
+
+.shop-map-popup-card__body {
+  padding: 14px 14px 15px;
+}
+
+.shop-map-popup-card__name {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.32;
+  letter-spacing: 0.01em;
+  color: #78350f;
+}
+
+.shop-map-popup-card__address {
+  margin: 7px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #57534e;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.shop-map-popup-card__description {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #78716c;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.shop-map-popup-card__footer {
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid #fcd34d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shop-map-popup-card__phone {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #57534e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shop-map-popup-card__cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  border-radius: 999px;
+  border: 1px solid #78350f;
+  background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+  color: #fff;
+  padding: 9px 13px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 18px rgba(146, 64, 14, 0.25);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.shop-map-popup-card__cta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 11px;
+}
+
+.shop-map-popup-card__cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(146, 64, 14, 0.3);
+  filter: brightness(1.05);
+}
