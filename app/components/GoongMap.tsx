@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import "@goongmaps/goong-js/dist/goong-js.css";
 import { Shop } from "../types/api/shops";
+import { MapFocusTarget } from "../types/mapFocus";
 
 type Coordinates = {
   lat: number;
@@ -20,17 +21,36 @@ type MapInstance = {
   addControl: (...args: unknown[]) => void;
   on: (event: string, handler: (event: MapEvent) => void) => void;
   setCenter: (center: [number, number]) => void;
+  flyTo?: (options: {
+    center: [number, number];
+    zoom?: number;
+    essential?: boolean;
+  }) => void;
   remove: () => void;
+};
+
+type PopupInstance = {
+  isOpen?: () => boolean;
 };
 
 type MarkerInstance = {
   remove: () => void;
+  togglePopup?: () => void;
+  getPopup?: () => PopupInstance | null;
 };
 
 interface GoongMapProps {
   location: Coordinates;
   shops: Shop[];
+  focusedMarker: MapFocusTarget | null;
 }
+
+type ShopMarker = {
+  slug: string;
+  lat: number;
+  lng: number;
+  marker: MarkerInstance;
+};
 
 const POPUP_FALLBACK_IMAGE = "https://via.placeholder.com/320x160?text=Quan+an";
 
@@ -60,7 +80,7 @@ const renderShopPopup = (shop: Shop) => {
   const description = escapeHtml(shop.description);
   const phone = escapeHtml(shop.phone);
   const slug = shop.slug?.trim() ? encodeURIComponent(shop.slug) : "";
-  const shopUrl = slug ? `/shops/${slug}` : "/shops";
+  const shopUrl = slug ? `/stores/${slug}` : "/stores";
   const isActive = shop.status === "active";
   const statusLabel = isActive ? "Đang phục vụ" : "Tạm ngưng";
 
@@ -93,7 +113,7 @@ const renderShopPopup = (shop: Shop) => {
           </p>
 
           <a
-            href="${shopUrl}"
+              href="${shopUrl}"
             class="shop-map-popup-card__cta"
             aria-label="Xem chi tiết quán ${name}"
           >
@@ -108,10 +128,22 @@ const renderShopPopup = (shop: Shop) => {
   `;
 };
 
-export default function GoongMap({ location, shops = [] }: GoongMapProps) {
+const areSameCoordinates = (
+  source: { lat: number; lng: number },
+  target: { lat: number; lng: number },
+) =>
+  Math.abs(source.lat - target.lat) < 0.000001 &&
+  Math.abs(source.lng - target.lng) < 0.000001;
+
+export default function GoongMap({
+  location,
+  shops = [],
+  focusedMarker,
+}: GoongMapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<MapInstance | null>(null);
   const markersRef = useRef<MarkerInstance[]>([]);
+  const shopMarkersRef = useRef<ShopMarker[]>([]);
   const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -175,6 +207,7 @@ export default function GoongMap({ location, shops = [] }: GoongMapProps) {
 
         markersRef.current.forEach((marker) => marker.remove());
         markersRef.current = [];
+        shopMarkersRef.current = [];
 
         const userMarker = new goongjs.Marker({ color: "red" })
           .setLngLat([location.lng, location.lat])
@@ -184,7 +217,12 @@ export default function GoongMap({ location, shops = [] }: GoongMapProps) {
         markersRef.current.push(userMarker);
 
         shops.forEach((shop) => {
-          if (!shop.latitude || !shop.longitude) return;
+          if (
+            !Number.isFinite(shop.latitude) ||
+            !Number.isFinite(shop.longitude)
+          ) {
+            return;
+          }
 
           const shopMarker = new goongjs.Marker({ color: "#0077B6" })
             .setLngLat([shop.longitude, shop.latitude])
@@ -193,13 +231,19 @@ export default function GoongMap({ location, shops = [] }: GoongMapProps) {
                 offset: 28,
                 closeButton: true,
                 closeOnClick: true,
-                maxWidth: "300px",
+                maxWidth: "260px",
                 className: "shop-map-popup",
               }).setHTML(renderShopPopup(shop)),
             )
             .addTo(mapInstanceRef.current) as MarkerInstance;
 
           markersRef.current.push(shopMarker);
+          shopMarkersRef.current.push({
+            slug: shop.slug?.trim().toLowerCase() || "",
+            lat: shop.latitude,
+            lng: shop.longitude,
+            marker: shopMarker,
+          });
         });
       } catch (error) {
         setMapError(
@@ -215,6 +259,7 @@ export default function GoongMap({ location, shops = [] }: GoongMapProps) {
       isMounted = false;
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
+      shopMarkersRef.current = [];
 
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
@@ -222,6 +267,35 @@ export default function GoongMap({ location, shops = [] }: GoongMapProps) {
       }
     };
   }, [location, shops]);
+
+  useEffect(() => {
+    if (!focusedMarker || !mapInstanceRef.current) return;
+
+    const map = mapInstanceRef.current;
+    const normalizedSlug = focusedMarker.shopSlug?.trim().toLowerCase();
+
+    map.flyTo?.({
+      center: [focusedMarker.lng, focusedMarker.lat],
+      zoom: 16,
+      essential: true,
+    });
+
+    const targetMarker = shopMarkersRef.current.find((shopMarker) => {
+      if (normalizedSlug) {
+        return shopMarker.slug === normalizedSlug;
+      }
+
+      return areSameCoordinates(
+        { lat: shopMarker.lat, lng: shopMarker.lng },
+        { lat: focusedMarker.lat, lng: focusedMarker.lng },
+      );
+    });
+
+    const popup = targetMarker?.marker.getPopup?.();
+    if (popup && !popup.isOpen?.()) {
+      targetMarker?.marker.togglePopup?.();
+    }
+  }, [focusedMarker]);
 
   if (mapError) {
     return (

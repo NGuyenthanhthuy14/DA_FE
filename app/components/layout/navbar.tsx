@@ -20,7 +20,7 @@ import { useUser } from "@/app/hook/useUser";
 
 const navItems = [
   { label: "Trang chủ", href: "/" },
-  { label: "Gần bạn", href: "/map" },
+  { label: "Sản phẩm", href: "/product" },
   { label: "Đặc sản", href: "/specialties" },
   { label: "Quán ăn", href: "/shops" },
   { label: "Tin tức", href: "/news" },

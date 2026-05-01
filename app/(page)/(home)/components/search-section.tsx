@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { BiMapPin, BiSearch } from "react-icons/bi";
-import { searchCategories } from "./home-data";
+
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -63,7 +63,7 @@ export default function SearchSection() {
           </motion.button>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-3">
+        {/* <div className="mt-4 flex flex-wrap gap-3">
           {searchCategories.map((item, index) => (
             <motion.button
               key={item}
@@ -77,7 +77,7 @@ export default function SearchSection() {
               {item}
             </motion.button>
           ))}
-        </div>
+        </div> */}
       </div>
     </motion.section>
   );

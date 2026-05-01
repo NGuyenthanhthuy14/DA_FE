@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Shop, ShopsResponse } from "../types/api/shops";
-import { getShops } from "@/apiRequest/shops";
+import { getShopBySlug, getShops } from "@/apiRequest/shops";
 
 export const useShopAPI = () => {
 	const [shop, setShop] = useState<ShopsResponse | null>(null);		
@@ -22,4 +22,28 @@ export const useShopAPI = () => {
 	return {
 		shop,	
 		};	
+}
+
+export const useShopDetail = (slug: string) => {
+	const [shopDetail, setShopDetail] = useState<Shop | null>(null);
+
+	const getShopDetail = async () => {
+		try {
+			const res = await getShopBySlug(slug);
+			if (res.metadata) {
+				setShopDetail(res.metadata);
+			}
+		} catch (error) {
+			console.error("Error fetching shop detail:", error);
+			return null;
+		}
+	};
+
+	useEffect(() => {
+		getShopDetail();
+	}, [slug]);
+
+	return {
+		shopDetail,
+	};
 }

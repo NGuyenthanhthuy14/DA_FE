@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CtaSection from "./components/cta-section";
 import HeroBanner from "./components/hero-banner";
+import {
+  loadHomeOverview,
+  type HomeOverview,
+} from "./components/home-api";
 import SearchSection from "./components/search-section";
+import FeaturedFoodsSection from "./components/featured-foods-section";
+import NearbyShopsSection from "./components/nearby-shops-section";
+import NearbyProductsSection from "./components/nearby-products-section";
+import { useNearbyProducts, useProduct } from "@/app/services/useProduct";
 
 type Coordinates = {
   lat: number;
@@ -13,6 +21,23 @@ type Coordinates = {
 export default function HomePage() {
   const [location, setLocation] = useState<Coordinates | null>(null);
   const [address, setAddress] = useState<string>("Đang xác định vị trí...");
+  const [overview, setOverview] = useState<HomeOverview | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+
+  const { nearbyProducts, nearbyProductsLoading } = useNearbyProducts(
+    location?.lat ?? null,
+    location?.lng ?? null,
+  );
+
+  const nearbyShops = useMemo(() => {
+    const shopMap = new Map<string, typeof nearbyProducts[0]["shop"]>();
+    for (const product of nearbyProducts) {
+      if (!shopMap.has(product.shop._id)) {
+        shopMap.set(product.shop._id, product.shop);
+      }
+    }
+    return Array.from(shopMap.values());
+  }, [nearbyProducts]);
 
   const getCurrentLocation = () => {
     return new Promise<Coordinates>((resolve, reject) => {
@@ -110,19 +135,49 @@ export default function HomePage() {
     }
   }, [location]);
 
+  useEffect(() => {
+    if (!location) return;
+
+    const controller = new AbortController();
+
+    setOverviewLoading(true);
+
+    void loadHomeOverview(location.lat, location.lng, controller.signal)
+      .then((data) => setOverview(data))
+      .catch((err) => {
+        console.error("Error loading home overview:", err);
+        setOverview(null);
+      })
+      .finally(() => setOverviewLoading(false));
+
+    return () => controller.abort();
+  }, [location]);
+
+  
+
   return (
     <>
+
       <HeroBanner location={location} address={address} />
 
       <SearchSection />
 
-      {/* <FeaturedFoodsSection
+      <FeaturedFoodsSection
+        productsNear={nearbyProducts}
+        isLoading={nearbyProductsLoading}
+      />
 
+      <NearbyProductsSection
+        products={nearbyProducts}
+        isLoading={nearbyProductsLoading}
       />
 
       <NearbyShopsSection
-
-      /> */}
+        shops={nearbyShops}
+        chatbotSuggestions={overview?.chatbotSuggestions ?? []}
+        areaLabel={overview?.areaName ?? "khu vực của bạn"}
+        isLoading={nearbyProductsLoading}
+      />
 
       <CtaSection />
     </>

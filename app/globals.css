@@ -93,7 +93,7 @@ body {
 }
 
 .shop-map-popup-card {
-  width: min(300px, 80vw);
+  width: min(260px, 74vw);
   color: #78350f;
   background: linear-gradient(180deg, #fffaf0 0%, #ffffff 68%);
   font-family: "Be Vietnam Pro", sans-serif;
@@ -102,7 +102,7 @@ body {
 .shop-map-popup-card__media {
   position: relative;
   width: 100%;
-  height: 150px;
+  height: 120px;
   background: #fff8e7;
 }
 
@@ -149,22 +149,22 @@ body {
 }
 
 .shop-map-popup-card__body {
-  padding: 14px 14px 15px;
+  padding: 11px 11px 12px;
 }
 
 .shop-map-popup-card__name {
   margin: 0;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
-  line-height: 1.32;
+  line-height: 1.28;
   letter-spacing: 0.01em;
   color: #78350f;
 }
 
 .shop-map-popup-card__address {
-  margin: 7px 0 0;
-  font-size: 12px;
-  line-height: 1.45;
+  margin: 5px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
   color: #57534e;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -173,9 +173,9 @@ body {
 }
 
 .shop-map-popup-card__description {
-  margin: 8px 0 0;
-  font-size: 12px;
-  line-height: 1.45;
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
   color: #78716c;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -184,21 +184,21 @@ body {
 }
 
 .shop-map-popup-card__footer {
-  margin-top: 13px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid #fcd34d;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .shop-map-popup-card__phone {
   margin: 0;
   flex: 1;
   min-width: 0;
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 11px;
+  line-height: 1.35;
   color: #57534e;
   white-space: nowrap;
   overflow: hidden;
@@ -209,14 +209,14 @@ body {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   text-decoration: none;
   border-radius: 999px;
   border: 1px solid #78350f;
   background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
   color: #fff;
-  padding: 9px 13px;
-  font-size: 12px;
+  padding: 7px 11px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.01em;
@@ -231,11 +231,11 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.22);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .shop-map-popup-card__cta:hover {

@@ -34,6 +34,18 @@ const allowedDevOrigins = Array.from(
 
 const nextConfig: NextConfig = {
   allowedDevOrigins,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

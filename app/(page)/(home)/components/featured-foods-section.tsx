@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { BiRightArrowAlt } from "react-icons/bi";
-import {
-  featuredFoods as fallbackSpecialties,
-  type FeaturedFood,
-} from "./home-data";
+import { NearbyProduct } from "@/app/types/api/product";
+import ProductCard from "@/app/components/ui/productCard";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -14,15 +12,15 @@ const fadeUp = {
 };
 
 interface FeaturedFoodsSectionProps {
-  specialties: FeaturedFood[];
+  productsNear: NearbyProduct[];
   isLoading?: boolean;
 }
 
 export default function FeaturedFoodsSection({
-  specialties,
+  productsNear,
   isLoading = false,
 }: FeaturedFoodsSectionProps) {
-  const foods = specialties.length > 0 ? specialties : fallbackSpecialties;
+  if (!isLoading && productsNear.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-6 md:px-6">
@@ -58,9 +56,9 @@ export default function FeaturedFoodsSection({
       </motion.div>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {foods.map((food, index) => (
+        {productsNear.slice(0,3).map((food, index) => (
           <motion.article
-            key={food.id}
+            key={food._id}
             initial={{ opacity: 0, y: 35 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.25 }}
@@ -68,31 +66,12 @@ export default function FeaturedFoodsSection({
             whileHover={{ y: -8 }}
             className="group overflow-hidden rounded-[28px] border border-amber-200 bg-white shadow-sm transition hover:shadow-xl"
           >
-            <div className="relative h-56 overflow-hidden">
-              <img
-                src={food.image}
-                alt={food.name}
-                className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-              />
-              <div className="absolute left-4 top-4 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-dark">
-                {food.location}
-              </div>
-            </div>
-
-            <div className="p-5">
-              <h3 className="text-xl font-bold text-dark">{food.name}</h3>
-              <p className="mt-2 line-clamp-2 text-sm leading-6 text-foreground/70">
-                {food.description}
-              </p>
-
-              <Link
-                href={`/foods/${food.id}`}
-                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary transition hover:text-dark"
-              >
-                Xem chi tiết
-                <BiRightArrowAlt className="text-lg transition group-hover:translate-x-1" />
-              </Link>
-            </div>
+            <ProductCard
+                name={food.name}
+                image={food.image}
+                description={food.description}
+  
+            />
           </motion.article>
         ))}
       </div>

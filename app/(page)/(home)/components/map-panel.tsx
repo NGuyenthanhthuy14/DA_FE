@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { BiMap, BiMapPin } from "react-icons/bi";
 import { useShopAPI } from "@/app/services/useShop";
+import { MapFocusTarget } from "@/app/types/mapFocus";
 
 const GoongMap = dynamic(() => import("../../../components/GoongMap"), {
   ssr: false,
@@ -16,15 +17,20 @@ type Coordinates = {
 
 interface MapPanelProps {
   location: Coordinates | null;
+  focusedMarker: MapFocusTarget | null;
 }
 
-export default function MapPanel({ location, address }: MapPanelProps & { address: string }) {
+export default function MapPanel({
+  location,
+  address,
+  focusedMarker,
+}: MapPanelProps & { address: string }) {
   const hasValidLocation = (
     value: Coordinates | null,
   ): value is Coordinates =>
     value !== null && Number.isFinite(value.lat) && Number.isFinite(value.lng);
 
-    const { shop } = useShopAPI();
+  const { shop } = useShopAPI();
 
   return (
     <motion.div
@@ -50,7 +56,11 @@ export default function MapPanel({ location, address }: MapPanelProps & { addres
 
       <div className="relative h-90 bg-primary-soft md:h-155">
         {hasValidLocation(location) ? (
-          <GoongMap location={location} shops={shop?.metadata || []} />
+          <GoongMap
+            location={location}
+            shops={shop?.metadata || []}
+            focusedMarker={focusedMarker}
+          />
         ) : (
           <div className="flex h-full items-center justify-center px-6 text-center">
             <div>

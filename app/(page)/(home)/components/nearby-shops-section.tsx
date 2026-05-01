@@ -6,15 +6,11 @@ import {
   BiMapPin,
   BiMessageRoundedDots,
   BiRightArrowAlt,
-  BiStar,
 } from "react-icons/bi";
-import {
-  nearbyShops as fallbackNearbyShops,
-  type NearbyShop,
-} from "./home-data";
+import { NearbyProductShop } from "@/app/types/api/product";
 
 interface NearbyShopsSectionProps {
-  shops: NearbyShop[];
+  shops: NearbyProductShop[];
   chatbotSuggestions: string[];
   areaLabel: string;
   isLoading?: boolean;
@@ -33,17 +29,21 @@ function fallbackSuggestions(areaLabel: string): string[] {
   ];
 }
 
+const FALLBACK_SHOP_IMAGE =
+  "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=1200&auto=format&fit=crop";
+
 export default function NearbyShopsSection({
   shops,
   chatbotSuggestions,
   areaLabel,
   isLoading = false,
 }: NearbyShopsSectionProps) {
-  const safeShops = shops.length > 0 ? shops : fallbackNearbyShops;
   const hints =
     chatbotSuggestions.length > 0
       ? chatbotSuggestions.slice(0, 3)
       : fallbackSuggestions(areaLabel);
+
+  if (!isLoading && shops.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 md:px-6">
@@ -80,9 +80,9 @@ export default function NearbyShopsSection({
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="grid gap-5">
-          {safeShops.map((shop, index) => (
+          {shops.slice(0,2).map((shop, index) => (
             <motion.article
-              key={shop.id}
+              key={shop._id}
               initial={{ opacity: 0, x: -25 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, amount: 0.25 }}
@@ -92,7 +92,7 @@ export default function NearbyShopsSection({
             >
               <div className="overflow-hidden">
                 <img
-                  src={shop.image}
+                  src={shop.cover_image || FALLBACK_SHOP_IMAGE}
                   alt={shop.name}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
@@ -101,19 +101,11 @@ export default function NearbyShopsSection({
               <div className="p-5">
                 <div className="flex flex-wrap items-center gap-3">
                   <h3 className="text-xl font-bold text-dark">{shop.name}</h3>
-                  <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">
-                    {shop.distance}
-                  </span>
                 </div>
 
                 <div className="mt-3 flex items-center gap-2 text-sm text-stone-600">
                   <BiMapPin className="text-base text-primary" />
-                  {shop.address}
-                </div>
-
-                <div className="mt-2 flex items-center gap-2 text-sm text-stone-600">
-                  <BiStar className="text-base text-accent" />
-                  {shop.rating} đánh giá
+                  {shop.formatted_address || shop.address}
                 </div>
 
                 <div className="mt-5 flex flex-wrap gap-3">
@@ -122,7 +114,7 @@ export default function NearbyShopsSection({
                     whileTap={{ scale: 0.98 }}
                   >
                     <Link
-                      href={`/shops/${shop.id}`}
+                      href={`/stores/${shop.slug}`}
                       className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-dark"
                     >
                       Xem quán

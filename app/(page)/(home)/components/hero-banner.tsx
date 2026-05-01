@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { useShopsWithSpecialties } from "@/app/services/useShopsWithSpecialties";
 import CategoryPanel from "./category-panel";
 import MapPanel from "./map-panel";
+import { MapFocusTarget } from "@/app/types/mapFocus";
 
 type Coordinates = {
   lat: number;
@@ -15,7 +18,12 @@ export default function HeroBanner({
   location: Coordinates | null;
   address: string;
 }) {
+  const { shopSpecialties } = useShopsWithSpecialties();
+  const [focusedMarker, setFocusedMarker] = useState<MapFocusTarget | null>(
+    null,
+  );
 
+  const shopSpecialtiesData = shopSpecialties?.metadata;
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
@@ -26,8 +34,15 @@ export default function HeroBanner({
 
       <div className="relative ">
         <div className="flex">
-          <MapPanel location={location} address={address} />
-          {/* <CategoryPanel categories={safeCategories} /> */}
+          <MapPanel
+            location={location}
+            address={address}
+            focusedMarker={focusedMarker}
+          />
+          <CategoryPanel
+            shopSpecialtiesData={shopSpecialtiesData}
+            onFocusMarker={setFocusedMarker}
+          />
         </div>
       </div>
     </section>
