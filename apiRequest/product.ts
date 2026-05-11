@@ -1,4 +1,4 @@
-import { ProductsResponse, NearbyProductsResponse } from "@/app/types/api/product";
+import { Product, ProductsResponse, NearbyProductsResponse } from "@/app/types/api/product";
 import { ProductTypesResponse } from "@/app/types/api/productType";
 import { get } from "./indext";
 
@@ -28,4 +28,10 @@ export const getAllProductByFilter = async (
   return await get(
     `/product/get-all?limit=${limit}&page=${page}&filter=${filterKey}&filter=${filterValue}`
   );
+};
+
+export const getProductById = async (id: string): Promise<{ err: number; mess: string; data: Product | null }> => {
+  const res = await getAllProduct();
+  const found = res.data?.find((p) => p._id === id) ?? null;
+  return { err: found ? 0 : 1, mess: found ? "ok" : "not found", data: found };
 };

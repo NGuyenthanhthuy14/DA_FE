@@ -272,6 +272,84 @@ export default function GoongMap({
     if (!focusedMarker || !mapInstanceRef.current) return;
 
     const map = mapInstanceRef.current;
+    const allShops = focusedMarker.allShops;
+
+    // Đóng tất cả popup đang mở trước khi mở popup mới
+    for (const sm of shopMarkersRef.current) {
+      const popup = sm.marker.getPopup?.();
+      if (popup?.isOpen?.()) {
+        sm.marker.togglePopup?.();
+      }
+    }
+
+    // Trường hợp: nhiều shop cùng đặc sản
+    if (allShops && allShops.length > 1) {
+      // Tính bounds chứa tất cả shop
+      let minLat = Infinity,
+        maxLat = -Infinity,
+        minLng = Infinity,
+        maxLng = -Infinity;
+
+      for (const shop of allShops) {
+        if (shop.lat < minLat) minLat = shop.lat;
+        if (shop.lat > maxLat) maxLat = shop.lat;
+        if (shop.lng < minLng) minLng = shop.lng;
+        if (shop.lng > maxLng) maxLng = shop.lng;
+      }
+
+      // Dùng fitBounds nếu có, nếu không thì flyTo trung tâm
+      const fitBounds = (map as unknown as Record<string, unknown>)
+        .fitBounds as
+        | ((
+            bounds: [[number, number], [number, number]],
+            options?: { padding?: number; maxZoom?: number },
+          ) => void)
+        | undefined;
+
+      if (fitBounds) {
+        fitBounds.call(map, [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ], {
+          padding: 60,
+          maxZoom: 15,
+        });
+      } else {
+        // Fallback: fly tới trung tâm
+        const centerLat = (minLat + maxLat) / 2;
+        const centerLng = (minLng + maxLng) / 2;
+        map.flyTo?.({
+          center: [centerLng, centerLat],
+          zoom: 13,
+          essential: true,
+        });
+      }
+
+      // Mở popup cho tất cả shop khớp
+      setTimeout(() => {
+        for (const shopInfo of allShops) {
+          const normalizedSlug = shopInfo.shopSlug?.trim().toLowerCase();
+          const matchedMarker = shopMarkersRef.current.find((sm) => {
+            if (normalizedSlug) {
+              return sm.slug === normalizedSlug;
+            }
+            return areSameCoordinates(
+              { lat: sm.lat, lng: sm.lng },
+              { lat: shopInfo.lat, lng: shopInfo.lng },
+            );
+          });
+
+          const popup = matchedMarker?.marker.getPopup?.();
+          if (popup && !popup.isOpen?.()) {
+            matchedMarker?.marker.togglePopup?.();
+          }
+        }
+      }, 600);
+
+      return;
+    }
+
+    // Trường hợp: 1 shop duy nhất (giữ nguyên logic cũ)
     const normalizedSlug = focusedMarker.shopSlug?.trim().toLowerCase();
 
     map.flyTo?.({

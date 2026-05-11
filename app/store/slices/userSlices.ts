@@ -5,9 +5,7 @@ import { AUTH_STATUS, AuthStatus } from "@/app/constants/auth";
 import { loginThunk, logoutThunk, registerThunk } from "@/app/action/authAction";
 import { UserRole } from "@/app/types/api/auth";
 
-// ============================================================
-// Types
-// ============================================================
+
 
 export interface User {
   id: string;

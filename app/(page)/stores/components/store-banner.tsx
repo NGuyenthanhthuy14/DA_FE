@@ -1,0 +1,12 @@
+"use client";
+
+import { bannerStore } from "@/app/assets/image/stores";
+
+export default function StoreBanner() {
+  return (
+    <section
+      className="relative w-full h-[400px] overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: `url(${bannerStore.src})` }}
+    />
+  );
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { ProductsResponse, NearbyProduct } from "../types/api/product";
-import { getAllProduct, getNearbyProducts } from "@/apiRequest/product";
+import { Product, ProductsResponse, NearbyProduct } from "../types/api/product";
+import { getAllProduct, getNearbyProducts, getProductById } from "@/apiRequest/product";
 
 export const useProduct = () => {
 	const [product, setProduct] = useState<ProductsResponse | null>(null);
@@ -52,4 +52,31 @@ export const useNearbyProducts = (lat: number | null, lng: number | null) => {
 		nearbyProducts,
 		nearbyProductsLoading: loading,
 	};
+};
+
+export const useProductDetail = (id: string) => {
+	const [productDetail, setProductDetail] = useState<Product | null>(null);
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		if (!id) return;
+
+		const fetchDetail = async () => {
+			setLoading(true);
+			try {
+				const res = await getProductById(id);
+				if (res?.data) {
+					setProductDetail(res.data);
+				}
+			} catch (error) {
+				console.error("Error fetching product detail:", error);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchDetail();
+	}, [id]);
+
+	return { productDetail, loading };
 };

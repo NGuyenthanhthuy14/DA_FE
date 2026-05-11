@@ -196,6 +196,7 @@ export default function StoreDetail({
                 {productsByShop.map((p) => (
                   <ProductCard
                     key={p._id}
+                    id={p._id}
                     name={p?.name}
                     image={p?.image_url}
                     description={p?.description}

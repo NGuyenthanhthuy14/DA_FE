@@ -11,6 +11,12 @@ interface CategoryPanelProps {
   onFocusMarker?: (target: MapFocusTarget) => void;
 }
 
+type ShopFocusInfo = {
+  lat: number;
+  lng: number;
+  shopSlug?: string;
+};
+
 type SpecialtySummary = {
   key: string;
   name: string;
@@ -18,12 +24,13 @@ type SpecialtySummary = {
   imageUrl: string;
   isFeatured: boolean;
   shopCount: number;
-  focusTarget?: MapFocusTarget;
+  /** Tọa độ tất cả shop có đặc sản này */
+  focusTargets: ShopFocusInfo[];
 };
 
 type RawSpecialty = Shop["specialties"][number] | string;
 
-const getFocusTarget = (shop: Shop): MapFocusTarget | undefined => {
+const getShopFocusInfo = (shop: Shop): ShopFocusInfo | undefined => {
   if (!Number.isFinite(shop.latitude) || !Number.isFinite(shop.longitude)) {
     return undefined;
   }
@@ -58,7 +65,7 @@ const buildSpecialtySummaries = (
           specialty.slug?.trim() ||
           `name:${name.toLowerCase()}`;
 
-      const focusTarget = getFocusTarget(shop);
+      const shopFocus = getShopFocusInfo(shop);
       const summary = specialtyMap.get(key);
       if (!summary) {
         specialtyMap.set(key, {
@@ -72,12 +79,15 @@ const buildSpecialtySummaries = (
             ? false
             : Boolean(specialty.is_featured),
           shopCount: 1,
-          focusTarget,
+          focusTargets: shopFocus ? [shopFocus] : [],
         });
         continue;
       }
 
       summary.shopCount += 1;
+      if (shopFocus) {
+        summary.focusTargets.push(shopFocus);
+      }
       if (!summary.description && !isStringSpecialty) {
         summary.description = specialty.description?.trim() || "";
       }
@@ -87,7 +97,6 @@ const buildSpecialtySummaries = (
       summary.isFeatured =
         summary.isFeatured ||
         (!isStringSpecialty && Boolean(specialty.is_featured));
-      summary.focusTarget = summary.focusTarget || focusTarget;
     }
   }
 
@@ -154,8 +163,14 @@ export default function CategoryPanel({
                   onClick={() => {
                     setSelectedSpecialtyKey(specialty.key);
 
-                    if (specialty.focusTarget) {
-                      onFocusMarker?.(specialty.focusTarget);
+                    if (specialty.focusTargets.length > 0) {
+                      const firstShop = specialty.focusTargets[0];
+                      onFocusMarker?.({
+                        lat: firstShop.lat,
+                        lng: firstShop.lng,
+                        shopSlug: firstShop.shopSlug,
+                        allShops: specialty.focusTargets,
+                      });
                     }
                   }}
                   className={`group w-full rounded-2xl px-4 py-3 text-left transition ${
