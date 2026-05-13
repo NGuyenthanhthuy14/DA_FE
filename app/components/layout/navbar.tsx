@@ -132,20 +132,22 @@ export default function Navbar() {
           </form>
 
           <div className="hidden shrink-0 items-center gap-4 lg:flex">
-            <Link
-              href="/cart"
-              className="flex flex-col items-center gap-0.5 text-[#5a3e2b] transition hover:text-primary"
-            >
-              <div className="relative">
-                <BiCart className="text-2xl" />
-                {cartCount > 0 && (
-                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                    {cartCount}
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] font-semibold">Giỏ hàng</span>
-            </Link>
+            {canShowAuthenticatedUI && (
+              <Link
+                href="/cart"
+                className="flex flex-col items-center gap-0.5 text-[#5a3e2b] transition hover:text-primary"
+              >
+                <div className="relative">
+                  <BiCart className="text-2xl" />
+                  {cartCount > 0 && (
+                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {cartCount}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] font-semibold">Giỏ hàng</span>
+              </Link>
+            )}
 
             {canShowAuthenticatedUI ? (
               <div className="relative" ref={dropdownRef}>

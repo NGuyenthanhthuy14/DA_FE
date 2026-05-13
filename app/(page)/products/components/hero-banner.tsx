@@ -8,7 +8,7 @@ export default function HeroBanner() {
         src={productBanner}
         alt="Tinh hoa đặc sản – Khắp mọi miền"
         priority
-        className="w-full h-120"
+        className="w-full h-150"
       />
     </section>
   );

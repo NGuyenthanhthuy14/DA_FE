@@ -5,7 +5,7 @@ import { banner } from "@/app/assets/image/specialties";
 export default function HeroSection() {
   return (
     <section
-      className="relative overflow-hidden h-[500px] bg-cover bg-center flex items-center"
+      className="relative overflow-hidden h-150 bg-cover bg-center flex items-center"
       style={{ backgroundImage: `url(${banner.src})` }}
     >
 

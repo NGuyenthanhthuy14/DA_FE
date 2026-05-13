@@ -1,7 +1,7 @@
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from "redux-persist";
 import storage from "redux-persist/lib/storage";
-import { userReducer, cartReducer } from "./slices";
+import { userReducer, cartReducer, addressReducer } from "./slices";
 
 
 // ============================================================
@@ -27,6 +27,14 @@ const cartPersistConfig = {
     storage,
 };
 
+/**
+ * Address persist config
+ */
+const addressPersistConfig = {
+    key: "address",
+    storage,
+};
+
 // ============================================================
 // Root Reducer
 // ============================================================
@@ -34,6 +42,7 @@ const cartPersistConfig = {
 const rootReducer = combineReducers({
 		user: persistReducer(userPersistConfig, userReducer),
 		cart: persistReducer(cartPersistConfig, cartReducer),
+		address: persistReducer(addressPersistConfig, addressReducer),
 });
 
 // ============================================================
