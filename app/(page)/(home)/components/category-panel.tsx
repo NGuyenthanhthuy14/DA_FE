@@ -8,6 +8,7 @@ import { MapFocusTarget } from "@/app/types/mapFocus";
 
 interface CategoryPanelProps {
   shopSpecialtiesData: Shop[] | undefined;
+  loading?: boolean;
   onFocusMarker?: (target: MapFocusTarget) => void;
 }
 
@@ -107,6 +108,7 @@ const buildSpecialtySummaries = (
 
 export default function CategoryPanel({
   shopSpecialtiesData,
+  loading = false,
   onFocusMarker,
 }: CategoryPanelProps) {
   const specialtiesOnly = buildSpecialtySummaries(shopSpecialtiesData);
@@ -140,7 +142,7 @@ export default function CategoryPanel({
           </div>
 
           <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-primary">
-            {specialtiesOnly.length} danh mục
+            {loading ? "Đang tải..." : `${specialtiesOnly.length} danh mục`}
           </span>
         </div>
       </div>
@@ -151,7 +153,16 @@ export default function CategoryPanel({
             shouldScroll ? "max-h-140 overflow-y-auto" : ""
           }`}
         >
-          {specialtiesOnly.length > 0 ? (
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-24 animate-pulse rounded-2xl border border-amber-100 bg-primary-soft"
+                />
+              ))}
+            </div>
+          ) : specialtiesOnly.length > 0 ? (
             specialtiesOnly.map((specialty) => {
               const isSelected = activeSpecialtyKey === specialty.key;
 

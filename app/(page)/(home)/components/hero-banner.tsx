@@ -18,7 +18,7 @@ export default function HeroBanner({
   location: Coordinates | null;
   address: string;
 }) {
-  const { shopSpecialties } = useShopsWithSpecialties();
+  const { shopSpecialties, loading } = useShopsWithSpecialties();
   const [focusedMarker, setFocusedMarker] = useState<MapFocusTarget | null>(
     null,
   );
@@ -41,6 +41,7 @@ export default function HeroBanner({
           />
           <CategoryPanel
             shopSpecialtiesData={shopSpecialtiesData}
+            loading={loading}
             onFocusMarker={setFocusedMarker}
           />
         </div>

@@ -11,6 +11,12 @@ export interface StoreCardBadge {
   bg: string;
 }
 
+export interface StoreCardSpecialty {
+  idSpecialties: string;
+  name: string;
+  image_url?: string;
+}
+
 export interface StoreCardProps {
   id: string;
   slug: string;
@@ -23,6 +29,7 @@ export interface StoreCardProps {
   distance?: string;
   badge?: StoreCardBadge | null;
   tags?: string[];
+  specialties?: StoreCardSpecialty[];
   liked?: boolean;
   onToggleLike?: () => void;
 }
@@ -39,6 +46,7 @@ export default function StoreCard({
   distance,
   badge,
   tags,
+  specialties,
   liked,
   onToggleLike,
 }: StoreCardProps) {
@@ -128,6 +136,37 @@ export default function StoreCard({
                 <span className="text-[#8b7a6b]">{distance}</span>
               </>
             )}
+          </div>
+        )}
+
+        {/* Đặc sản */}
+        {specialties && specialties.length > 0 && (
+          <div className="mt-1">
+            <p className="m-0 text-[0.7rem] font-semibold text-amber-700 uppercase tracking-wider mb-1">
+              🍲 Đặc sản
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {specialties.slice(0, 3).map((spec) => (
+                <span
+                  key={spec.idSpecialties}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.72rem] font-medium text-amber-800 bg-amber-50 border border-amber-200 leading-snug whitespace-nowrap"
+                >
+                  {spec.image_url && (
+                    <img
+                      src={spec.image_url}
+                      alt={spec.name}
+                      className="w-4 h-4 rounded-full object-cover"
+                    />
+                  )}
+                  {spec.name}
+                </span>
+              ))}
+              {specialties.length > 3 && (
+                <span className="inline-block px-2 py-0.5 rounded-full text-[0.72rem] text-amber-600 bg-amber-50 border border-amber-200 leading-snug">
+                  +{specialties.length - 3} món
+                </span>
+              )}
+            </div>
           </div>
         )}
 

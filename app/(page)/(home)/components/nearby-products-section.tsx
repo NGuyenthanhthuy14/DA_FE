@@ -14,6 +14,7 @@ import ProductNearCard from "@/app/components/ui/productNearCard";
 interface NearbyProductsSectionProps {
   products: NearbyProduct[];
   isLoading?: boolean;
+  isNearby?: boolean;
 }
 
 const fadeUp = {
@@ -28,8 +29,11 @@ function formatPrice(price: number): string {
 export default function NearbyProductsSection({
   products,
   isLoading = false,
+  isNearby = true,
 }: NearbyProductsSectionProps) {
-  if (!isLoading && products.length === 0) return null;
+  // Luôn hiển thị section, kể cả khi rỗng (sẽ show skeleton hoặc empty state)
+  const showSection = isLoading || products.length > 0;
+  if (!showSection) return null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 md:px-6">
@@ -43,18 +47,24 @@ export default function NearbyProductsSection({
       >
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-600">
-            Gần bạn
+            {isNearby ? "Gần bạn" : "Sản phẩm"}
           </p>
           <h2 className="mt-2 text-3xl font-bold text-dark">
-            Sản phẩm trong bán kính 20km
+            {isNearby
+              ? "Sản phẩm trong bán kính 20km"
+              : "Tất cả sản phẩm"}
           </h2>
           {isLoading ? (
             <p className="mt-2 text-sm text-foreground/60">
-              Đang tìm sản phẩm gần vị trí của bạn...
+              {isNearby
+                ? "Đang tìm sản phẩm gần vị trí của bạn..."
+                : "Đang tải sản phẩm..."}
             </p>
           ) : (
             <p className="mt-2 text-sm text-foreground/60">
-              Tìm thấy {products.length} sản phẩm gần bạn
+              {isNearby
+                ? `Tìm thấy ${products.length} sản phẩm gần bạn`
+                : `${products.length} sản phẩm`}
             </p>
           )}
         </div>

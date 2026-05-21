@@ -43,7 +43,8 @@ export default function NearbyShopsSection({
       ? chatbotSuggestions.slice(0, 3)
       : fallbackSuggestions(areaLabel);
 
-  if (!isLoading && shops.length === 0) return null;
+  const showSection = isLoading || shops.length > 0;
+  if (!showSection) return null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 md:px-6">

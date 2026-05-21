@@ -41,6 +41,26 @@ export interface SpecialtyDetailResponse {
   metadata: SpecialtyDetail;
 }
 
+export interface SpecialtyCatalogItem {
+  _id: string;
+  name: string;
+  slug: string;
+  description: string;
+  image_url: string;
+  category_id: string;
+}
+
+export interface SpecialtyCatalogResponse {
+  statusCode: number;
+  error: string | null;
+  message: string;
+  metadata: SpecialtyCatalogItem[];
+}
+
+export const getAllSpecialties = async (): Promise<SpecialtyCatalogResponse> => {
+  return await get("/specialties");
+};
+
 export const getSpecialtyBySlug = async (
   slug: string
 ): Promise<SpecialtyDetailResponse> => {

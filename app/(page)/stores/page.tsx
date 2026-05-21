@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import StoreBanner from "./components/store-banner";
 import StoreCard from "./components/store-card";
-import type { StoreCardBadge } from "./components/store-card";
 import StoreCardSkeleton from "./components/store-card-skeleton";
 import { useShopAPI } from "@/app/services/useShop";
+import { getShopsWithSpecialties } from "@/apiRequest/specialtyShop";
+import type { Specialty } from "@/app/types/api/specialtyShop";
 
 
 const TAG_POOL = [
@@ -53,6 +54,7 @@ export default function StorePage() {
   const { shop } = useShopAPI();
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [specialtiesMap, setSpecialtiesMap] = useState<Record<string, Specialty[]>>({});
 
   const stores = shop?.metadata ?? [];
   const loading = !shop;
@@ -67,6 +69,30 @@ export default function StorePage() {
     } else {
       setUserLocation({ lat: 21.0285, lng: 105.8542 });
     }
+  }, []);
+
+  // Lấy đặc sản cho từng shop
+  useEffect(() => {
+    async function fetchSpecialties() {
+      try {
+        const res = await getShopsWithSpecialties();
+        if (res.metadata) {
+          const map: Record<string, Specialty[]> = {};
+          for (const s of res.metadata) {
+            const shopId = s.idShop || (s as any)._id || "";
+            const slug = s.slug || "";
+            if (s.specialties && s.specialties.length > 0) {
+              if (shopId) map[shopId] = s.specialties;
+              if (slug) map[slug] = s.specialties;
+            }
+          }
+          setSpecialtiesMap(map);
+        }
+      } catch (error) {
+        console.error("Lỗi khi lấy đặc sản:", error);
+      }
+    }
+    fetchSpecialties();
   }, []);
 
   const storesWithDistance = useMemo(() => {
@@ -91,6 +117,11 @@ export default function StorePage() {
       }
       return next;
     });
+  };
+
+  // Tìm specialties cho 1 shop theo _id hoặc slug
+  const getShopSpecialties = (shopId: string, slug: string): Specialty[] => {
+    return specialtiesMap[shopId] || specialtiesMap[slug] || [];
   };
 
   return (
@@ -120,6 +151,7 @@ export default function StorePage() {
                   reviewCount={getReviewCount(index)}
                   distance={formatDistanceKm(distanceKm)}
                   tags={getTags(index)}
+                  specialties={getShopSpecialties(store._id, store.slug)}
                   liked={likedIds.has(store._id)}
                   onToggleLike={() => handleToggleLike(store._id)}
                 />

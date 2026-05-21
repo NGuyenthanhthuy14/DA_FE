@@ -1,19 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useMemo } from "react";
 import Banner from "./components/banner";
 import SpecialCard from "./components/specialCard";
 import CategoryCard from "./components/categoryCard";
 import { getShopBySlug } from "@/apiRequest/shops";
-import { getShopsWithSpecialties } from "@/apiRequest/specialtyShop";
 import { getAllProduct } from "@/apiRequest/product";
+import { getAllSpecialties, type SpecialtyCatalogItem } from "@/apiRequest/specialty";
 import type { Shop } from "@/app/types/api/shops";
 import type { Specialty } from "@/app/types/api/specialtyShop";
 import type { Product } from "@/app/types/api/product";
 import { useShopDetail } from "@/app/services/useShop";
 import { useProduct } from "@/app/services/useProduct";
-import ProductNearCard from "@/app/components/ui/productNearCard";
 import ProductCard from "@/app/components/ui/productCard";
+import { get } from "@/apiRequest/indext";
 
 interface CategoryItem {
   id: string;
@@ -21,18 +21,19 @@ interface CategoryItem {
   emoji: string;
 }
 
-const CATEGORY_MAP: Record<string, { label: string; emoji: string }> = {
-  "cat-001": { label: "Cơm", emoji: "🍚" },
-  "cat-002": { label: "Bún / Phở", emoji: "🍜" },
-  "cat-003": { label: "Món xào", emoji: "🍳" },
-  "cat-004": { label: "Món ăn vặt", emoji: "🥗" },
-  "cat-005": { label: "Đồ uống", emoji: "🧋" },
-  "cat-006": { label: "Tráng miệng", emoji: "🍰" },
+const CATEGORY_EMOJI: Record<string, string> = {
+  "Trà Sữa": "🧋",
+  "Bánh Kẹo": "🍬",
+  "Đồ Ăn Vặt": "🥗",
+  "Trà - Cà Phê": "☕",
+  "Mứt - Ô Mai": "🍊",
+  "Đặc Sản Khô": "🥩",
+  "Cơm": "🍚",
+  "Bún / Phở": "🍜",
+  "Món xào": "🍳",
+  "Đồ uống": "🧋",
+  "Tráng miệng": "🍰",
 };
-
-function getCategoryInfo(catId: string) {
-  return CATEGORY_MAP[catId] || { label: catId, emoji: "🍽" };
-}
 
 export default function StoreDetail({
   params,
@@ -41,77 +42,98 @@ export default function StoreDetail({
 }) {
   const { slug } = use(params);
 
-  const [specialties, setSpecialties] = useState<Specialty[]>([]);
+  const [allSpecialties, setAllSpecialties] = useState<SpecialtyCatalogItem[]>([]);
+  const [allCategories, setAllCategories] = useState<{ _id: string; name: string; slug: string }[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [activeCategory, setActiveCategory] = useState("all");
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
-  const [cartCount, setCartCount] = useState(0);
-  const [loading, setLoading] = useState(true);
 
   const { shopDetail } = useShopDetail(slug);
   const { product } = useProduct();
+  const loading = !product || !shopDetail;
 
-  const productsByShop =
-    product?.data.filter((p) => p.shop_id === shopDetail?._id) || [];
+  const productsByShop = useMemo(
+    () => product?.data.filter((p) => p.shop_id === shopDetail?._id) || [],
+    [product?.data, shopDetail?._id]
+  );
 
-  console.log("Shop Detail:", productsByShop);
+  // Lấy tất cả specialties
   useEffect(() => {
-    async function fetchSpecialties() {
-      try {
-        const res = await getShopsWithSpecialties();
-        if (res.metadata) {
-          const currentShop = res.metadata.find((s) => s.slug === slug);
-          if (currentShop?.specialties) {
-            setSpecialties(currentShop.specialties);
-          }
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy đặc sản:", error);
-      }
-    }
-    fetchSpecialties();
-  }, [slug]);
+    getAllSpecialties()
+      .then((res) => {
+        setAllSpecialties(res.metadata || []);
+      })
+      .catch((err) => console.error("Lỗi khi lấy specialties:", err));
+  }, []);
 
+  // Lấy tất cả categories
   useEffect(() => {
-    if (!shopDetail) return;
+    get("/categories")
+      .then((res: { data?: { _id: string; name: string; slug: string }[] }) => {
+        setAllCategories(res?.data || []);
+      })
+      .catch((err: unknown) => console.error("Lỗi khi lấy categories:", err));
+  }, []);
 
-    async function fetchProducts() {
-      try {
-        setLoading(true);
-        const productsRes = await getAllProduct();
+  // Tìm đặc sản cho sản phẩm trong cửa hàng này
+  const shopSpecialties: Specialty[] = useMemo(() => {
+    if (!productsByShop.length || !allSpecialties.length) return [];
 
-        if (productsRes.data) {
-          const shopProducts = productsRes.data.filter(
-            (p) => p.shop_id === shopDetail?._id,
-          );
-          setProducts(shopProducts);
+    // Lấy unique specialty_id từ sản phẩm của shop
+    const specialtyIds = Array.from(
+      new Set(
+        productsByShop
+          .map((p) => p.specialty_id)
+          .filter((id): id is string => !!id)
+      )
+    );
 
-          const uniqueCatIds = Array.from(
-            new Set(
-              shopProducts
-                .map((p) => p.category_id)
-                .filter((id): id is string => !!id),
-            ),
-          );
+    // Tìm specialty tương ứng
+    return specialtyIds
+      .map((specId) => {
+        const found = allSpecialties.find((s) => s._id === specId);
+        if (!found) return null;
+        return {
+          idSpecialties: found._id,
+          name: found.name,
+          slug: found.slug,
+          description: found.description || "",
+          image_url: found.image_url || "",
+          category_id: found.category_id || "",
+          is_featured: true,
+        };
+      })
+      .filter((s): s is Specialty => s !== null);
+  }, [productsByShop, allSpecialties]);
 
-          const cats: CategoryItem[] = [
-            { id: "all", label: "Tất cả", emoji: "🍽" },
-            ...uniqueCatIds.map((catId) => {
-              const info = getCategoryInfo(catId);
-              return { id: catId, label: info.label, emoji: info.emoji };
-            }),
-          ];
-          setCategories(cats);
-        }
-      } catch (error) {
-        console.error("Lỗi khi lấy sản phẩm:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchProducts();
-  }, [shopDetail]);
+  // Xây categories từ sản phẩm + dữ liệu categories thật (derived state để tránh render-loop)
+  const categories = useMemo(() => {
+    if (!shopDetail || !productsByShop.length) return [];
+
+    const uniqueCatIds = Array.from(
+      new Set(
+        productsByShop
+          .map((p) => p.category_id)
+          .filter((id): id is string => !!id)
+      )
+    );
+
+    return [
+      { id: "all", label: "Tất cả", emoji: "🍽" },
+      ...uniqueCatIds.map((catId) => {
+        const catData = allCategories.find((c) => c._id === catId);
+        const catName = catData?.name || catId;
+        const emoji = CATEGORY_EMOJI[catName] || "🍽";
+        return { id: catId, label: catName, emoji };
+      }),
+    ];
+  }, [shopDetail, productsByShop, allCategories]);
+
+  // Lọc sản phẩm theo category
+  const filteredProducts = useMemo(() => {
+    if (activeCategory === "all") return productsByShop;
+    return productsByShop.filter((p) => p.category_id === activeCategory);
+  }, [productsByShop, activeCategory]);
 
   return (
     <>
@@ -127,7 +149,8 @@ export default function StoreDetail({
         />
 
         <div className="container">
-          {specialties.length > 0 && (
+          {/* Đặc sản */}
+          {shopSpecialties.length > 0 && (
             <section className="py-8 border-b border-gray-100">
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -143,13 +166,14 @@ export default function StoreDetail({
                 </span>
               </div>
               <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
-                {specialties.map((s, index) => (
+                {shopSpecialties.map((s, index) => (
                   <SpecialCard key={s.idSpecialties} item={s} index={index} />
                 ))}
               </div>
             </section>
           )}
 
+          {/* Danh mục */}
           {categories.length > 1 && (
             <div className="py-6 border-b border-gray-100">
               <p className="text-sm text-gray-600 mb-4 font-medium">Danh mục</p>
@@ -169,12 +193,13 @@ export default function StoreDetail({
             </div>
           )}
 
+          {/* Thực đơn */}
           <div className="py-8">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">
                 Thực Đơn{" "}
                 <span className="text-amber-700 text-lg font-semibold">
-                  ({productsByShop.length})
+                  ({filteredProducts.length})
                 </span>
               </h2>
               <p className="text-sm text-gray-500 mt-1">
@@ -193,19 +218,22 @@ export default function StoreDetail({
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {productsByShop.map((p) => (
+                {filteredProducts.map((p) => (
                   <ProductCard
                     key={p._id}
                     id={p._id}
                     name={p?.name}
                     image={p?.image_url}
                     description={p?.description}
+                    price={p?.price}
+                    rating={p?.rating}
+                    sold={p?.sold}
                   />
                 ))}
               </div>
             )}
 
-            {!loading && productsByShop.length === 0 && (
+            {!loading && filteredProducts.length === 0 && (
               <div className="text-center py-16">
                 <p className="text-lg text-gray-400">😢</p>
                 <p className="text-gray-500 mt-2">

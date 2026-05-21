@@ -20,7 +20,8 @@ export default function FeaturedFoodsSection({
   productsNear,
   isLoading = false,
 }: FeaturedFoodsSectionProps) {
-  if (!isLoading && productsNear.length === 0) return null;
+  const showSection = isLoading || productsNear.length > 0;
+  if (!showSection) return null;
 
   return (
       <section className="mx-auto max-w-7xl px-4 py-6 md:px-6">
@@ -34,14 +35,14 @@ export default function FeaturedFoodsSection({
         >
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-600">
-              Đặc sản khu vực
+              Đặc sản nổi bật
             </p>
             <h2 className="mt-2 text-3xl font-bold text-dark">
-              Gợi ý món nên thử quanh vị trí của bạn
+              Gợi ý món nên thử
             </h2>
             {isLoading ? (
               <p className="mt-2 text-sm text-foreground/60">
-                Đang cập nhật đặc sản theo GPS...
+                Đang tải đặc sản...
               </p>
             ) : null}
           </div>
