@@ -9,184 +9,228 @@ import StoreCardSkeleton from "./components/store-card-skeleton";
 import { useShopAPI } from "@/app/services/useShop";
 import { getShopsWithSpecialties } from "@/apiRequest/specialtyShop";
 import { useUser } from "@/app/hook/useUser";
+import Pagination from "../products/components/pagination";
 import type { Specialty } from "@/app/types/api/specialtyShop";
 
+const ITEMS_PER_PAGE = 6;
 
 const TAG_POOL = [
-  ["Phở", "Quán lâu năm"],
-  ["Bún chả", "Nổi tiếng"],
-  ["Bánh mì", "Giá rẻ"],
-  ["Cơm tấm", "No căng bụng"],
-  ["Bún đậu", "Đông khách"],
-  ["Lẩu", "Ăn là ghiền"],
+    ["Phở", "Quán lâu năm"],
+    ["Bún chả", "Nổi tiếng"],
+    ["Bánh mì", "Giá rẻ"],
+    ["Cơm tấm", "No căng bụng"],
+    ["Bún đậu", "Đông khách"],
+    ["Lẩu", "Ăn là ghiền"],
 ];
 
-
 function getTags(index: number): string[] {
-  return TAG_POOL[index % TAG_POOL.length];
+    return TAG_POOL[index % TAG_POOL.length];
 }
 
 function getRating(index: number): number {
-  const ratings = [4.7, 4.6, 4.5, 4.4, 4.3, 4.2];
-  return ratings[index % ratings.length];
+    const ratings = [4.7, 4.6, 4.5, 4.4, 4.3, 4.2];
+    return ratings[index % ratings.length];
 }
 
 function getReviewCount(index: number): number {
-  const counts = [2100, 3200, 1500, 1100, 980, 870];
-  return counts[index % counts.length];
+    const counts = [2100, 3200, 1500, 1100, 980, 870];
+    return counts[index % counts.length];
 }
 
 /* ── Haversine distance (km) ── */
-function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+function haversineKm(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+): number {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function formatDistanceKm(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)}m`;
-  return `${km.toFixed(1)}km`;
+    if (km < 1) return `${Math.round(km * 1000)}m`;
+    return `${km.toFixed(1)}km`;
 }
 
 export default function StorePage() {
-  const { shop } = useShopAPI();
-  const { isAuthenticated } = useUser();
-  const router = useRouter();
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [specialtiesMap, setSpecialtiesMap] = useState<Record<string, Specialty[]>>({});
+    const { shop } = useShopAPI();
+    const { isAuthenticated } = useUser();
+    const router = useRouter();
+    const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+    const [currentPage, setCurrentPage] = useState(1);
+    const [userLocation, setUserLocation] = useState<{
+        lat: number;
+        lng: number;
+    } | null>(null);
+    const [specialtiesMap, setSpecialtiesMap] = useState<
+        Record<string, Specialty[]>
+    >({})
 
-  const stores = shop?.metadata ?? [];
-  const loading = !shop;
+    const stores = shop?.metadata ?? [];
+    const loading = !shop;
 
-  // Get user location
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => setUserLocation({ lat: 21.0285, lng: 105.8542 })
-      );
-    } else {
-      setUserLocation({ lat: 21.0285, lng: 105.8542 });
-    }
-  }, []);
-
-  // Lấy đặc sản cho từng shop
-  useEffect(() => {
-    async function fetchSpecialties() {
-      try {
-        const res = await getShopsWithSpecialties();
-        if (res.metadata) {
-          const map: Record<string, Specialty[]> = {};
-          for (const s of res.metadata) {
-            const shopId = s.idShop || (s as any)._id || "";
-            const slug = s.slug || "";
-            if (s.specialties && s.specialties.length > 0) {
-              if (shopId) map[shopId] = s.specialties;
-              if (slug) map[slug] = s.specialties;
-            }
-          }
-          setSpecialtiesMap(map);
+    // Get user location
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) =>
+                    setUserLocation({
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                    }),
+                () => setUserLocation({ lat: 21.0285, lng: 105.8542 }),
+            );
+        } else {
+            setUserLocation({ lat: 21.0285, lng: 105.8542 });
         }
-      } catch (error) {
-        console.error("Lỗi khi lấy đặc sản:", error);
-      }
-    }
-    fetchSpecialties();
-  }, []);
+    }, []);
 
-  const storesWithDistance = useMemo(() => {
-    if (!userLocation) return stores.map((s) => ({ store: s, distanceKm: 0 }));
+    // Lấy đặc sản cho từng shop
+    useEffect(() => {
+        async function fetchSpecialties() {
+            try {
+                const res = await getShopsWithSpecialties();
+                if (res.metadata) {
+                    const map: Record<string, Specialty[]> = {};
+                    for (const s of res.metadata) {
+                        const shopId = s.idShop || (s as any)._id || "";
+                        const slug = s.slug || "";
+                        if (s.specialties && s.specialties.length > 0) {
+                            if (shopId) map[shopId] = s.specialties;
+                            if (slug) map[slug] = s.specialties;
+                        }
+                    }
+                    setSpecialtiesMap(map);
+                }
+            } catch (error) {
+                console.error("Lỗi khi lấy đặc sản:", error);
+            }
+        }
+        fetchSpecialties();
+    }, []);
 
-    const withDist = stores.map((store) => ({
-      store,
-      distanceKm: haversineKm(userLocation.lat, userLocation.lng, store.latitude, store.longitude),
-    }));
+    const storesWithDistance = useMemo(() => {
+        if (!userLocation)
+            return stores.map((s) => ({ store: s, distanceKm: 0 }));
 
-    withDist.sort((a, b) => a.distanceKm - b.distanceKm);
-    return withDist;
-  }, [stores, userLocation]);
+        const withDist = stores.map((store) => ({
+            store,
+            distanceKm: haversineKm(
+                userLocation.lat,
+                userLocation.lng,
+                store.latitude,
+                store.longitude,
+            ),
+        }));
 
-  const handleToggleLike = (id: string) => {
-    // Kiểm tra xác thực - nếu chưa đăng nhập, redirect đến trang login
-    if (!isAuthenticated) {
-      toast.error("Vui lòng đăng nhập để thêm quán vào danh sách yêu thích");
-      router.push("/auth/login");
-      return;
-    }
+        withDist.sort((a, b) => a.distanceKm - b.distanceKm);
+        return withDist;
+    }, [stores, userLocation]);
 
-    setLikedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+    const handleToggleLike = (id: string) => {
+        // Kiểm tra xác thực - nếu chưa đăng nhập, redirect đến trang login
+        if (!isAuthenticated) {
+            toast.error(
+                "Vui lòng đăng nhập để thêm quán vào danh sách yêu thích",
+            );
+            router.push("/auth/login");
+            return;
+        }
 
-  // Tìm specialties cho 1 shop theo _id hoặc slug
-  const getShopSpecialties = (shopId: string, slug: string): Specialty[] => {
-    return specialtiesMap[shopId] || specialtiesMap[slug] || [];
-  };
+        setLikedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
 
-  return (
-    <div className="min-h-screen bg-[#fdf8f3]">
-      <StoreBanner />
+    // Tìm specialties cho 1 shop theo _id hoặc slug
+    const getShopSpecialties = (shopId: string, slug: string): Specialty[] => {
+        return specialtiesMap[shopId] || specialtiesMap[slug] || [];
+    };
 
-      <main className="container pt-6 pb-12">
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <StoreCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : storesWithDistance.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {storesWithDistance.map(({ store, distanceKm }, index) => (
-                <StoreCard
-                  key={store._id}
-                  id={store._id}
-                  slug={store.slug}
-                  name={store.name}
-                  image={store.cover_image || undefined}
-                  description={store.description}
-                  address={store.formatted_address || store.address}
-                  rating={getRating(index)}
-                  reviewCount={getReviewCount(index)}
-                  distance={formatDistanceKm(distanceKm)}
-                  tags={getTags(index)}
-                  specialties={getShopSpecialties(store._id, store.slug)}
-                  liked={likedIds.has(store._id)}
-                  onToggleLike={() => handleToggleLike(store._id)}
-                />
-              ))}
-            </div>
+    // Paginate
+    const totalPages = Math.max(
+        1,
+        Math.ceil(storesWithDistance.length / ITEMS_PER_PAGE),
+    );
+    const paginatedStores = useMemo(() => {
+        return storesWithDistance.slice(
+            (currentPage - 1) * ITEMS_PER_PAGE,
+            currentPage * ITEMS_PER_PAGE,
+        );
+    }, [storesWithDistance, currentPage]);
 
-            <div className="flex items-center justify-center gap-2 py-6 text-[#8b7a6b] text-sm">
-              <span>🔄</span>
-              <span>Đang tải thêm quán ngon</span>
-              <span className="inline-flex gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#c9a77d] animate-bounce [animation-delay:0ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-[#c9a77d] animate-bounce [animation-delay:200ms]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-[#c9a77d] animate-bounce [animation-delay:400ms]" />
-              </span>
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-16">
-            <p className="text-5xl mb-4">😢</p>
-            <p className="text-[#8b7a6b] text-base">Không tìm thấy quán ăn nào</p>
-          </div>
-        )}
-      </main>
-    </div>
-  );
+    return (
+        <div className="min-h-screen bg-[#fdf8f3]">
+            <StoreBanner />
+
+            <main className="container pt-6 pb-12">
+                {loading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <StoreCardSkeleton key={i} />
+                        ))}
+                    </div>
+                ) : storesWithDistance.length > 0 ? (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {paginatedStores.map(
+                                ({ store, distanceKm }, index) => (
+                                    <StoreCard
+                                        key={store._id}
+                                        id={store._id}
+                                        slug={store.slug}
+                                        name={store.name}
+                                        image={store.cover_image || undefined}
+                                        description={store.description}
+                                        address={
+                                            store.formatted_address ||
+                                            store.address
+                                        }
+                                        rating={getRating(index)}
+                                        reviewCount={getReviewCount(index)}
+                                        distance={formatDistanceKm(distanceKm)}
+                                        tags={getTags(index)}
+                                        specialties={getShopSpecialties(
+                                            store._id,
+                                            store.slug,
+                                        )}
+                                        liked={likedIds.has(store._id)}
+                                        onToggleLike={() =>
+                                            handleToggleLike(store._id)
+                                        }
+                                    />
+                                ),
+                            )}
+                        </div>
+
+                        <Pagination
+                            current={currentPage}
+                            total={totalPages}
+                            onChange={setCurrentPage}
+                        />
+                    </>
+                ) : (
+                    <div className="text-center py-16">
+                        <p className="text-5xl mb-4">😢</p>
+                        <p className="text-[#8b7a6b] text-base">
+                            Không tìm thấy quán ăn nào
+                        </p>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
 }
