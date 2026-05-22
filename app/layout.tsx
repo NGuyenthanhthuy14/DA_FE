@@ -23,7 +23,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi">
-      <body className={`${beVietnam.className} ${playfair.variable}`}>
+      <body
+        className={`${beVietnam.className} ${playfair.variable}`}
+        suppressHydrationWarning
+      >
         <StoreProvider> 
           <Navbar />
           {children}
