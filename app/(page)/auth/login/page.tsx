@@ -16,17 +16,14 @@ export default function LoginPage() {
     const email = String(formData.get("email") || "").trim();
     const password = String(formData.get("password") || "");
     try {
-       await loginHook({ email, password });
-       form.reset();
-       route.push("/");
-       toast.success("Đăng nhập thành công!");
-    }
-    catch (error) {
-      console.error("Login failed:", error);
+      await loginHook({ email, password });
+      form.reset();
+      route.push("/");
+      toast.success("Đăng nhập thành công!");
+    } catch (error) {
       toast.error("Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.");
-
     }
-  }
+  };
 
   return (
     <div>

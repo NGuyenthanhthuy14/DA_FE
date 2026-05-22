@@ -12,16 +12,27 @@ function formatPrice(price: number): string {
 interface ProductNearCardProps {
   product: NearbyProduct | Product;
   storeName?: string;
+  storeAddress?: string;
   distanceText?: string;
 }
 
-export default function ProductNearCard({ product, storeName, distanceText }: ProductNearCardProps) {
+export default function ProductNearCard({
+  product,
+  storeName,
+  storeAddress,
+  distanceText,
+}: ProductNearCardProps) {
   const img = product.image || ("image_url" in product ? product.image_url : "") || null;
   const discount = product.discount ?? 0;
   const rating = product.rating ?? 0;
   const sold = product.sold ?? 0;
   const hasShop = "shop" in product && product.shop;
   const hasDistance = "distanceKm" in product && product.distanceKm !== undefined;
+  const shopName = hasShop ? (product as NearbyProduct).shop.name : storeName;
+  const shopAddress = hasShop
+    ? (product as NearbyProduct).shop.formatted_address ||
+      (product as NearbyProduct).shop.address
+    : storeAddress;
 
   return (
     <Link href={`/products/${product._id}`}>
@@ -93,12 +104,21 @@ export default function ProductNearCard({ product, storeName, distanceText }: Pr
           {sold > 0 && <span>Đã bán {sold}</span>}
         </div>
 
-        {(hasShop || storeName) && (
-          <div className="mt-3 flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-sm text-stone-600">
-            <BiStore className="text-base text-primary" />
-            <span className="line-clamp-1">
-              {hasShop ? (product as NearbyProduct).shop.name : storeName}
-            </span>
+        {(shopName || shopAddress) && (
+          <div className="mt-3 space-y-1.5 rounded-xl bg-gray-50 px-3 py-2 text-sm text-stone-600">
+            {shopName && (
+              <div className="flex items-center gap-2">
+                <BiStore className="shrink-0 text-base text-primary" />
+                <span className="line-clamp-1">{shopName}</span>
+              </div>
+            )}
+
+            {shopAddress && (
+              <div className="flex items-start gap-2 text-xs text-stone-500">
+                <BiMapPin className="mt-0.5 shrink-0 text-sm text-primary" />
+                <span className="line-clamp-2">{shopAddress}</span>
+              </div>
+            )}
           </div>
         )}
       </div>

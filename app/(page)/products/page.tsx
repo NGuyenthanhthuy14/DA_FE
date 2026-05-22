@@ -285,6 +285,13 @@ export default function ProductPage() {
     return p.shop_id ? shopMap.get(p.shop_id)?.name : undefined;
   };
 
+  const getStoreAddress = (p: ProductListItem) => {
+    if (isNearbyProduct(p)) return p.shop.formatted_address || p.shop.address;
+
+    const shop = p.shop_id ? shopMap.get(p.shop_id) : undefined;
+    return shop?.formatted_address || shop?.address;
+  };
+
   return (
     <div className="bg-[#fdf8f3] min-h-screen">
       <HeroBanner />
@@ -375,6 +382,7 @@ export default function ProductPage() {
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {paginatedProducts.map((product, index) => {
                   const storeName = getStoreName(product);
+                  const storeAddress = getStoreAddress(product);
                   const distanceText = getDistance(product);
 
                   return (
@@ -389,6 +397,7 @@ export default function ProductPage() {
                       <ProductNearCard
                         product={product}
                         storeName={storeName}
+                        storeAddress={storeAddress}
                         distanceText={distanceText}
                       />
                     </motion.div>

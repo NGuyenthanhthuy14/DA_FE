@@ -3,10 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import CtaSection from "./components/cta-section";
 import HeroBanner from "./components/hero-banner";
-import {
-  loadHomeOverview,
-  type HomeOverview,
-} from "./components/home-api";
+import { loadHomeOverview, type HomeOverview } from "./components/home-api";
 import SearchSection from "./components/search-section";
 import FeaturedFoodsSection from "./components/featured-foods-section";
 import NearbyShopsSection from "./components/nearby-shops-section";
@@ -72,9 +69,7 @@ export default function HomePage() {
   // Dùng nearby nếu có, nếu không dùng tất cả
   const hasNearby = nearbyProducts.length > 0;
   const displayProducts = hasNearby ? nearbyProducts : allProductsAsNearby;
-  const isProductsLoading = hasNearby
-    ? nearbyProductsLoading
-    : !allProductsRes;
+  const isProductsLoading = hasNearby ? nearbyProductsLoading : !allProductsRes;
 
   // Lấy danh sách shop từ displayProducts
   const displayShopsFromProducts: NearbyProductShop[] = useMemo(() => {
@@ -178,7 +173,6 @@ export default function HomePage() {
         setLocation(loc);
         setAddress("Đang lấy địa chỉ...");
       } catch (error) {
-        console.error("Error fetching location:", error);
         setAddress(getGeolocationErrorMessage(error));
         setLocationFailed(true);
       }
@@ -189,7 +183,7 @@ export default function HomePage() {
 
   const getFullAddress = async (lat: number, lng: number) => {
     const res = await fetch(
-      `https://rsapi.goong.io/Geocode?latlng=${lat},${lng}&api_key=${process.env.NEXT_PUBLIC_GOONG_API_KEY}`
+      `https://rsapi.goong.io/Geocode?latlng=${lat},${lng}&api_key=${process.env.NEXT_PUBLIC_GOONG_API_KEY}`,
     );
     const data = await res.json();
 
