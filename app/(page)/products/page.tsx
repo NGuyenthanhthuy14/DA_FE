@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BiFilter, BiChevronDown } from "react-icons/bi";
-import type { Product } from "@/app/types/api/product";
+import { toast } from "sonner";
+import type { NearbyProduct, Product } from "@/app/types/api/product";
 import type { DistanceRange } from "./components/sidebar-filter";
 import type { Shop } from "@/app/types/api/shops";
 import HeroBanner from "./components/hero-banner";
@@ -13,8 +14,13 @@ import ProductNearCard from "@/app/components/ui/productNearCard";
 import { useProduct } from "@/app/services/useProduct";
 import { useShopAPI } from "@/app/services/useShop";
 import { getProductDistance } from "@/app/utils/distance";
+import { getNearbyProducts } from "@/apiRequest/product";
 
 const ITEMS_PER_PAGE = 9;
+
+type ProductListItem = Product | NearbyProduct;
+const EMPTY_PRODUCTS: Product[] = [];
+const EMPTY_SHOPS: Shop[] = [];
 
 const SORT_OPTIONS = [
   { value: "newest", label: "Mới nhất" },
@@ -59,6 +65,10 @@ function getMaxKm(range: DistanceRange): number {
   }
 }
 
+function isNearbyProduct(product: ProductListItem): product is NearbyProduct {
+  return "shop" in product;
+}
+
 function ProductSkeleton() {
   return (
     <div className="animate-pulse overflow-hidden rounded-2xl bg-white">
@@ -82,7 +92,10 @@ export default function ProductPage() {
   const [sortBy, setSortBy] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const [showSort, setShowSort] = useState(false);
+  const [nearbyProducts, setNearbyProducts] = useState<NearbyProduct[]>([]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+  const nearbyRequestRef = useRef(0);
 
   // User geolocation
   const [userLat, setUserLat] = useState<number | null>(null);
@@ -90,9 +103,9 @@ export default function ProductPage() {
 
   const { product } = useProduct();
   const { shop } = useShopAPI();
-  const allProducts = product?.data ?? [];
-  const allShops = shop?.metadata ?? [];
-  const loading = product === null;
+  const allProducts = product?.data ?? EMPTY_PRODUCTS;
+  const allShops = shop?.metadata ?? EMPTY_SHOPS;
+  const loading = product === null || nearbyLoading;
   const productTypes = useMemo(
     () => [...new Set(allProducts.map((p) => p.type).filter(Boolean))] as string[],
     [allProducts]
@@ -118,16 +131,35 @@ export default function ProductPage() {
 
   // Request geolocation on mount
   useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserLat(pos.coords.latitude);
-          setUserLng(pos.coords.longitude);
-        },
-        (err) => console.warn("Geolocation error:", err.message),
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+    if (!("geolocation" in navigator)) {
+      toast.warning("Trình duyệt của bạn không hỗ trợ định vị.");
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLat(pos.coords.latitude);
+        setUserLng(pos.coords.longitude);
+      },
+      (err) => {
+        console.warn("Geolocation error:", err.message);
+
+        if (err.code === err.PERMISSION_DENIED) {
+          toast.warning(
+            "Bạn chưa cấp quyền định vị. Hãy bật quyền vị trí để lọc sản phẩm theo khoảng cách."
+          );
+          return;
+        }
+
+        if (err.code === err.TIMEOUT) {
+          toast.warning("Không lấy được vị trí kịp thời. Vui lòng thử lại sau.");
+          return;
+        }
+
+        toast.warning("Không thể lấy vị trí hiện tại. Vui lòng kiểm tra quyền định vị.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }, []);
 
   // Close sort dropdown on outside click
@@ -140,26 +172,55 @@ export default function ProductPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const handleDistanceRangeChange = async (range: DistanceRange) => {
+    const requestId = ++nearbyRequestRef.current;
+
+    setDistanceRange(range);
+    setCurrentPage(1);
+
+    if (range === "all") {
+      setNearbyProducts([]);
+      setNearbyLoading(false);
+      return;
+    }
+
+    if (userLat === null || userLng === null) {
+      setNearbyProducts([]);
+      setNearbyLoading(false);
+      toast.warning("Vui lòng cấp quyền định vị để lọc sản phẩm theo khoảng cách.");
+      return;
+    }
+
+    setNearbyLoading(true);
+    try {
+      const res = await getNearbyProducts(userLat, userLng, getMaxKm(range), 20);
+      if (requestId === nearbyRequestRef.current) {
+        setNearbyProducts(res.err === 0 ? res.data : []);
+      }
+    } catch (error) {
+      console.error("Error fetching nearby products:", error);
+      if (requestId === nearbyRequestRef.current) {
+        setNearbyProducts([]);
+      }
+    } finally {
+      if (requestId === nearbyRequestRef.current) {
+        setNearbyLoading(false);
+      }
+    }
+  };
+
+  const sourceProducts: ProductListItem[] =
+    distanceRange === "all" ? allProducts : nearbyProducts;
+
   // Filter by type
   const filteredByType = useMemo(() => {
-    if (activeType === "all") return allProducts;
-    return allProducts.filter((p) => p.type === activeType);
-  }, [allProducts, activeType]);
-
-  // Filter by distance
-  const filteredByDistance = useMemo(() => {
-    if (distanceRange === "all") return filteredByType;
-    const maxKm = getMaxKm(distanceRange);
-    return filteredByType.filter((p) => {
-      if (!p.shop_id) return false;
-      const dist = shopDistanceMap.get(p.shop_id);
-      return dist !== undefined && dist <= maxKm;
-    });
-  }, [filteredByType, distanceRange, shopDistanceMap]);
+    if (activeType === "all") return sourceProducts;
+    return sourceProducts.filter((p) => p.type === activeType);
+  }, [sourceProducts, activeType]);
 
   // Sort
   const sortedProducts = useMemo(() => {
-    const list = [...filteredByDistance];
+    const list = [...filteredByType];
     switch (sortBy) {
       case "bestSelling":
         return list.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
@@ -171,15 +232,23 @@ export default function ProductPage() {
         return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
       case "nearest":
         return list.sort((a, b) => {
-          const distA = a.shop_id ? shopDistanceMap.get(a.shop_id) ?? Infinity : Infinity;
-          const distB = b.shop_id ? shopDistanceMap.get(b.shop_id) ?? Infinity : Infinity;
+          const distA = isNearbyProduct(a)
+            ? a.distanceKm
+            : a.shop_id
+              ? shopDistanceMap.get(a.shop_id) ?? Infinity
+              : Infinity;
+          const distB = isNearbyProduct(b)
+            ? b.distanceKm
+            : b.shop_id
+              ? shopDistanceMap.get(b.shop_id) ?? Infinity
+              : Infinity;
           return distA - distB;
         });
       case "newest":
       default:
         return list.reverse();
     }
-  }, [filteredByDistance, sortBy, shopDistanceMap]);
+  }, [filteredByType, sortBy, shopDistanceMap]);
 
   // Paginate
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE));
@@ -194,8 +263,11 @@ export default function ProductPage() {
   }, [activeType, distanceRange, sortBy]);
 
   const resetFilters = () => {
+    nearbyRequestRef.current += 1;
     setActiveType("all");
     setDistanceRange("all");
+    setNearbyProducts([]);
+    setNearbyLoading(false);
     setSortBy("newest");
   };
 
@@ -203,8 +275,15 @@ export default function ProductPage() {
   const activeLabel = activeType === "all" ? "Tất cả sản phẩm" : activeType;
   const activeSortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? "Mới nhất";
 
-  const getDistance = (p: Product) =>
-    getProductDistance(p.shop_id, shopDistanceMap, hasLocation);
+  const getDistance = (p: ProductListItem) => {
+    if (isNearbyProduct(p)) return `${p.distanceKm} km`;
+    return getProductDistance(p.shop_id, shopDistanceMap, hasLocation);
+  };
+
+  const getStoreName = (p: ProductListItem) => {
+    if (isNearbyProduct(p)) return p.shop.name;
+    return p.shop_id ? shopMap.get(p.shop_id)?.name : undefined;
+  };
 
   return (
     <div className="bg-[#fdf8f3] min-h-screen">
@@ -218,7 +297,7 @@ export default function ProductPage() {
               activeType={activeType}
               onTypeChange={setActiveType}
               distanceRange={distanceRange}
-              onDistanceRangeChange={setDistanceRange}
+              onDistanceRangeChange={handleDistanceRangeChange}
               sortBy={sortBy}
               onSortChange={setSortBy}
               hasLocation={hasLocation}
@@ -295,9 +374,7 @@ export default function ProductPage() {
             ) : paginatedProducts.length > 0 ? (
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {paginatedProducts.map((product, index) => {
-                  const productShop = product.shop_id
-                    ? shopMap.get(product.shop_id)
-                    : undefined;
+                  const storeName = getStoreName(product);
                   const distanceText = getDistance(product);
 
                   return (
@@ -311,7 +388,7 @@ export default function ProductPage() {
                     >
                       <ProductNearCard
                         product={product}
-                        storeName={productShop?.name}
+                        storeName={storeName}
                         distanceText={distanceText}
                       />
                     </motion.div>
