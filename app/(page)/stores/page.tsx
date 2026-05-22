@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import StoreBanner from "./components/store-banner";
 import StoreCard from "./components/store-card";
 import StoreCardSkeleton from "./components/store-card-skeleton";
 import { useShopAPI } from "@/app/services/useShop";
 import { getShopsWithSpecialties } from "@/apiRequest/specialtyShop";
+import { useUser } from "@/app/hook/useUser";
 import type { Specialty } from "@/app/types/api/specialtyShop";
 
 
@@ -52,6 +55,8 @@ function formatDistanceKm(km: number): string {
 
 export default function StorePage() {
   const { shop } = useShopAPI();
+  const { isAuthenticated } = useUser();
+  const router = useRouter();
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [specialtiesMap, setSpecialtiesMap] = useState<Record<string, Specialty[]>>({});
@@ -108,6 +113,13 @@ export default function StorePage() {
   }, [stores, userLocation]);
 
   const handleToggleLike = (id: string) => {
+    // Kiểm tra xác thực - nếu chưa đăng nhập, redirect đến trang login
+    if (!isAuthenticated) {
+      toast.error("Vui lòng đăng nhập để thêm quán vào danh sách yêu thích");
+      router.push("/auth/login");
+      return;
+    }
+
     setLikedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
