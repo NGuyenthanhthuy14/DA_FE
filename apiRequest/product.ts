@@ -2,6 +2,13 @@ import { Product, ProductsResponse, NearbyProductsResponse } from "@/app/types/a
 import { ProductTypesResponse } from "@/app/types/api/productType";
 import { get } from "./indext";
 
+type ProductDetailResponse = {
+  err: number;
+  mess: string;
+  data: Product | null;
+  metadata?: Product | null;
+};
+
 export const getAllProduct = async (): Promise<ProductsResponse> => {
   return await get("/product/get-all");
 }; 
@@ -30,8 +37,10 @@ export const getAllProductByFilter = async (
   );
 };
 
-export const getProductById = async (id: string): Promise<{ err: number; mess: string; data: Product | null }> => {
-  const res = await getAllProduct();
-  const found = res.data?.find((p) => p._id === id) ?? null;
-  return { err: found ? 0 : 1, mess: found ? "ok" : "not found", data: found };
+export const getProductById = async (id: string): Promise<ProductDetailResponse> => {
+  const res = await get<ProductDetailResponse>(`/product/get-detail/${id}`);
+  return {
+    ...res,
+    data: res.data ?? res.metadata ?? null,
+  };
 };

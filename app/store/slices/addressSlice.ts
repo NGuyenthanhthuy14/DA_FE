@@ -12,8 +12,11 @@ export interface AddressData {
   phone: string;
   address: string;
   city: string;
+  provinceId?: number;
   district: string;
   ward: string;
+  districtId?: number;
+  wardCode?: string;
   detail: string;
   isDefault: boolean;
 }

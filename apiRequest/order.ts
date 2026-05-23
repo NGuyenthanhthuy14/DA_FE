@@ -30,8 +30,11 @@ export interface CreateOrderPayload {
     phone: string;
     address: string;
     city: string;
+    province_id?: number;
     district: string;
+    district_id?: number;
     ward: string;
+    ward_code?: string;
     detail: string;
   };
   shopOrders: ShopOrderPayload[];

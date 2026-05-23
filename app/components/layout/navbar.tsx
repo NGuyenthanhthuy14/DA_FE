@@ -198,7 +198,7 @@ export default function Navbar() {
                                                 className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-amber-50 hover:text-primary"
                                             >
                                                 <BiUserCircle className="text-lg" />
-                                                <span>Tài khoản của tô</span>
+                                                <span>Tài khoản của tôi</span>
                                             </Link>
 
                                             <button

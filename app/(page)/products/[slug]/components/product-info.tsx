@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  BiStar,
   BiSolidStar,
   BiShoppingBag,
   BiMinus,
@@ -17,6 +18,10 @@ function formatPrice(price: number): string {
   return price.toLocaleString("vi-VN") + "đ";
 }
 
+function formatRating(rating: number): string {
+  return rating.toFixed(1);
+}
+
 interface ProductInfoProps {
   productId: string;
   name: string;
@@ -25,6 +30,7 @@ interface ProductInfoProps {
   type?: string;
   price: number;
   rating?: number;
+  reviewCount?: number;
   sold?: number;
   discount?: number;
   countInStock?: number;
@@ -43,6 +49,7 @@ export default function ProductInfo({
   type,
   price,
   rating = 0,
+  reviewCount = 0,
   sold = 0,
   discount = 0,
   countInStock = 0,
@@ -96,13 +103,29 @@ export default function ProductInfo({
             {name}
           </h1>
 
-          <div className="mt-3 flex items-center gap-3 text-sm text-[#7c5a3a]">
-            <span className="flex items-center gap-1 font-bold text-accent">
-              <BiSolidStar className="text-base" />
-              {rating || "0"}
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[#7c5a3a]">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="border-b border-stone-900 pr-0.5 text-base font-bold leading-5 text-stone-950">
+                {formatRating(rating)}
+              </span>
+              <span className="inline-flex items-center gap-0.5">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  index < Math.round(rating) ? (
+                    <BiSolidStar
+                      key={index}
+                      className="text-base text-[#f59e0b]"
+                    />
+                  ) : (
+                    <BiStar
+                      key={index}
+                      className="text-base text-[#8a6a4d]"
+                    />
+                  )
+                ))}
+              </span>
             </span>
 
-            <span>({Math.floor((rating || 1) * 67)} đánh giá)</span>
+            <span>({reviewCount} đánh giá)</span>
 
             <span className="h-4 w-px bg-amber-200" />
 

@@ -93,6 +93,11 @@ export default function ProductDetail({
   }
 
   const img = productDetail.image_url || productDetail.image || "";
+  const reviews = productDetail.reviews ?? [];
+  const reviewCount =
+    productDetail.reviewCount ?? productDetail.ratingSummary?.total ?? reviews.length;
+  const averageRating =
+    productDetail.ratingSummary?.averageRating ?? productDetail.rating ?? 0;
 
   return (
     <div className="min-h-screen bg-[#fdf8f3]">
@@ -114,7 +119,8 @@ export default function ProductDetail({
             image={img}
             type={productDetail.type}
             price={productDetail.price}
-            rating={productDetail.rating}
+            rating={averageRating}
+            reviewCount={reviewCount}
             sold={productDetail.sold}
             discount={productDetail.discount}
             countInStock={productDetail.countInStock}
@@ -128,8 +134,10 @@ export default function ProductDetail({
         {/* Tabs Section */}
         <ProductTabs
           description={productDetail.description}
-          rating={productDetail.rating}
-          sold={productDetail.sold}
+          rating={averageRating}
+          reviewCount={reviewCount}
+          ratingSummary={productDetail.ratingSummary}
+          reviews={reviews}
         />
 
         {/* Related Products (with store names) */}

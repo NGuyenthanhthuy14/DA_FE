@@ -1,3 +1,28 @@
+export interface ProductReviewUser {
+  _id: string;
+  full_name?: string;
+  email?: string;
+  avatar_url?: string;
+}
+
+export interface ProductDetailReview {
+  _id: string;
+  user?: ProductReviewUser | string;
+  product: string;
+  order?: string;
+  shop?: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ProductRatingSummary {
+  averageRating: number;
+  total: number;
+  stars: Record<"1" | "2" | "3" | "4" | "5", number>;
+}
+
 export interface Product {
   _id: string;
   id?: string;
@@ -15,6 +40,9 @@ export interface Product {
   description?: string;
   sold?: number;
   discount?: number;
+  reviews?: ProductDetailReview[];
+  reviewCount?: number;
+  ratingSummary?: ProductRatingSummary;
   created_at?: string;
   updated_at?: string;
   createdAt?: string;

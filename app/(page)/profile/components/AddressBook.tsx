@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import React, { FormEvent, useEffect, useState } from "react";
 import {
   LuCheck,
@@ -19,6 +21,14 @@ import {
   patchAddress,
   updateAddress,
 } from "@/apiRequest/address";
+import {
+  getGhnDistricts,
+  getGhnProvinces,
+  getGhnWards,
+  type GhnDistrict,
+  type GhnProvince,
+  type GhnWard,
+} from "@/apiRequest/ghn";
 import type { AddressPayload, UserAddress } from "@/app/types/api/address";
 
 type AddressForm = AddressPayload;
@@ -29,13 +39,28 @@ const EMPTY_FORM: AddressForm = {
   phone: "",
   address: "",
   city: "",
+  province_id: undefined,
   district: "",
+  district_id: undefined,
   ward: "",
+  ward_code: "",
   detail: "",
   is_default: false,
 };
 
 const normalizePhone = (phone: string) => phone.replace(/\D/g, "").slice(0, 12);
+const normalizeNumber = (value?: number | string) => {
+  if (value === undefined || value === "") return undefined;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : undefined;
+};
+const normalizeName = (value?: string) =>
+  value
+    ?.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^(tinh|thanh pho|tp\.?|quan|huyen|thi xa|phuong|xa|thi tran)\s+/i, "")
+    .trim()
+    .toLowerCase() || "";
 
 function toForm(address?: UserAddress): AddressForm {
   if (!address) return EMPTY_FORM;
@@ -46,8 +71,11 @@ function toForm(address?: UserAddress): AddressForm {
     phone: address.phone,
     address: address.address,
     city: address.city || "",
+    province_id: address.province_id,
     district: address.district || "",
+    district_id: address.district_id,
     ward: address.ward || "",
+    ward_code: address.ward_code || "",
     detail: address.detail || "",
     is_default: address.is_default,
   };
@@ -70,13 +98,153 @@ function AddressModal({
 }: AddressModalProps) {
   const [form, setForm] = useState<AddressForm>(toForm(address || undefined));
   const [error, setError] = useState<string | null>(null);
+  const [provinces, setProvinces] = useState<GhnProvince[]>([]);
+  const [districts, setDistricts] = useState<GhnDistrict[]>([]);
+  const [wards, setWards] = useState<GhnWard[]>([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
+  const [regionError, setRegionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setForm(toForm(address || undefined));
       setError(null);
+      setRegionError(null);
     }
   }, [address, open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let ignore = false;
+    setLoadingProvinces(true);
+    getGhnProvinces()
+      .then((data) => {
+        if (!ignore) setProvinces(data);
+      })
+      .catch((fetchError: unknown) => {
+        if (ignore) return;
+        setRegionError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Không thể tải danh sách tỉnh/thành từ GHN"
+        );
+      })
+      .finally(() => {
+        if (!ignore) setLoadingProvinces(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || form.province_id || !form.city || provinces.length === 0) return;
+
+    const province = provinces.find(
+      (item) => normalizeName(item.province_name) === normalizeName(form.city)
+    );
+    if (!province) return;
+
+    setForm((current) => ({
+      ...current,
+      city: province.province_name,
+      province_id: province.province_id,
+    }));
+  }, [form.city, form.province_id, open, provinces]);
+
+  useEffect(() => {
+    const provinceId = normalizeNumber(form.province_id);
+    if (!open || !provinceId) {
+      setDistricts([]);
+      setWards([]);
+      return;
+    }
+
+    let ignore = false;
+    setLoadingDistricts(true);
+    getGhnDistricts(provinceId)
+      .then((data) => {
+        if (!ignore) setDistricts(data);
+      })
+      .catch((fetchError: unknown) => {
+        if (ignore) return;
+        setRegionError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Không thể tải danh sách quận/huyện từ GHN"
+        );
+      })
+      .finally(() => {
+        if (!ignore) setLoadingDistricts(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [form.province_id, open]);
+
+  useEffect(() => {
+    if (!open || form.district_id || !form.district || districts.length === 0) return;
+
+    const district = districts.find(
+      (item) => normalizeName(item.district_name) === normalizeName(form.district)
+    );
+    if (!district) return;
+
+    setForm((current) => ({
+      ...current,
+      district: district.district_name,
+      district_id: district.district_id,
+    }));
+  }, [districts, form.district, form.district_id, open]);
+
+  useEffect(() => {
+    const districtId = normalizeNumber(form.district_id);
+    if (!open || !districtId) {
+      setWards([]);
+      return;
+    }
+
+    let ignore = false;
+    setLoadingWards(true);
+    getGhnWards(districtId)
+      .then((data) => {
+        if (!ignore) setWards(data);
+      })
+      .catch((fetchError: unknown) => {
+        if (ignore) return;
+        setRegionError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Không thể tải danh sách phường/xã từ GHN"
+        );
+      })
+      .finally(() => {
+        if (!ignore) setLoadingWards(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [form.district_id, open]);
+
+  useEffect(() => {
+    if (!open || form.ward_code || !form.ward || wards.length === 0) return;
+
+    const ward = wards.find(
+      (item) => normalizeName(item.ward_name) === normalizeName(form.ward)
+    );
+    if (!ward) return;
+
+    setForm((current) => ({
+      ...current,
+      ward: ward.ward_name,
+      ward_code: ward.ward_code,
+    }));
+  }, [form.ward, form.ward_code, open, wards]);
 
   if (!open) return null;
 
@@ -84,6 +252,45 @@ function AddressModal({
     setForm((current) => ({
       ...current,
       [field]: field === "phone" && typeof value === "string" ? normalizePhone(value) : value,
+    }));
+    setError(null);
+  };
+
+  const handleProvinceChange = (value: string) => {
+    const province = provinces.find((item) => item.province_id === Number(value));
+    setForm((current) => ({
+      ...current,
+      city: province?.province_name || "",
+      province_id: province?.province_id,
+      district: "",
+      district_id: undefined,
+      ward: "",
+      ward_code: "",
+    }));
+    setDistricts([]);
+    setWards([]);
+    setError(null);
+  };
+
+  const handleDistrictChange = (value: string) => {
+    const district = districts.find((item) => item.district_id === Number(value));
+    setForm((current) => ({
+      ...current,
+      district: district?.district_name || "",
+      district_id: district?.district_id,
+      ward: "",
+      ward_code: "",
+    }));
+    setWards([]);
+    setError(null);
+  };
+
+  const handleWardChange = (value: string) => {
+    const ward = wards.find((item) => item.ward_code === value);
+    setForm((current) => ({
+      ...current,
+      ward: ward?.ward_name || "",
+      ward_code: ward?.ward_code || "",
     }));
     setError(null);
   };
@@ -97,8 +304,11 @@ function AddressModal({
       phone: normalizePhone(form.phone),
       address: form.address.trim(),
       city: form.city?.trim() || "",
+      province_id: normalizeNumber(form.province_id),
       district: form.district?.trim() || "",
+      district_id: normalizeNumber(form.district_id),
       ward: form.ward?.trim() || "",
+      ward_code: form.ward_code?.trim() || "",
       detail: form.detail?.trim() || "",
       is_default: Boolean(form.is_default),
     };
@@ -118,12 +328,17 @@ function AddressModal({
       return;
     }
 
+    if (!payload.province_id || !payload.district_id || !payload.ward_code) {
+      setError("Vui lòng chọn đầy đủ Tỉnh/Thành phố, Quận/Huyện và Phường/Xã.");
+      return;
+    }
+
     await onSubmit(payload);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-amber-100 px-6 py-4">
           <h2 className="m-0 text-lg font-extrabold text-stone-800">
             {address ? "Sửa địa chỉ" : "Thêm địa chỉ"}
@@ -181,34 +396,68 @@ function AddressModal({
               <span className="mb-1.5 block text-sm font-semibold text-stone-700">
                 Tỉnh/Thành phố
               </span>
-              <input
-                value={form.city}
-                onChange={(event) => setField("city", event.target.value)}
+              <select
+                required
+                value={form.province_id ?? ""}
+                onChange={(event) => handleProvinceChange(event.target.value)}
+                disabled={loadingProvinces}
                 className="w-full rounded-xl border border-amber-200 bg-amber-50/40 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:bg-white"
-              />
+              >
+                <option value="">
+                  {loadingProvinces ? "Đang tải..." : "Chọn tỉnh/thành"}
+                </option>
+                {provinces.map((province) => (
+                  <option key={province.province_id} value={province.province_id}>
+                    {province.province_name}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-stone-700">
                 Quận/Huyện
               </span>
-              <input
-                value={form.district}
-                onChange={(event) => setField("district", event.target.value)}
+              <select
+                required
+                value={form.district_id ?? ""}
+                onChange={(event) => handleDistrictChange(event.target.value)}
+                disabled={!form.province_id || loadingDistricts}
                 className="w-full rounded-xl border border-amber-200 bg-amber-50/40 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:bg-white"
-              />
+              >
+                <option value="">
+                  {loadingDistricts ? "Đang tải..." : "Chọn quận/huyện"}
+                </option>
+                {districts.map((district) => (
+                  <option key={district.district_id} value={district.district_id}>
+                    {district.district_name}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-stone-700">
                 Phường/Xã
               </span>
-              <input
-                value={form.ward}
-                onChange={(event) => setField("ward", event.target.value)}
+              <select
+                required
+                value={form.ward_code ?? ""}
+                onChange={(event) => handleWardChange(event.target.value)}
+                disabled={!form.district_id || loadingWards}
                 className="w-full rounded-xl border border-amber-200 bg-amber-50/40 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:bg-white"
-              />
+              >
+                <option value="">
+                  {loadingWards ? "Đang tải..." : "Chọn phường/xã"}
+                </option>
+                {wards.map((ward) => (
+                  <option key={ward.ward_code} value={ward.ward_code}>
+                    {ward.ward_name}
+                  </option>
+                ))}
+              </select>
             </label>
+
           </div>
 
           <label className="mt-4 block">
@@ -249,6 +498,12 @@ function AddressModal({
           {error && (
             <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
               {error}
+            </p>
+          )}
+
+          {regionError && (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              {regionError}
             </p>
           )}
 

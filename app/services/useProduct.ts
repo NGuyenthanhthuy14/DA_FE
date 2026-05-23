@@ -56,7 +56,7 @@ export const useNearbyProducts = (lat: number | null, lng: number | null) => {
 
 export const useProductDetail = (id: string) => {
 	const [productDetail, setProductDetail] = useState<Product | null>(null);
-	const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(Boolean(id));
 
 	useEffect(() => {
 		if (!id) return;
@@ -67,9 +67,12 @@ export const useProductDetail = (id: string) => {
 				const res = await getProductById(id);
 				if (res?.data) {
 					setProductDetail(res.data);
+				} else {
+					setProductDetail(null);
 				}
 			} catch (error) {
 				console.error("Error fetching product detail:", error);
+				setProductDetail(null);
 			} finally {
 				setLoading(false);
 			}

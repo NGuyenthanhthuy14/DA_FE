@@ -5,8 +5,11 @@ export interface UserAddress {
   phone: string;
   address: string;
   city: string;
+  province_id?: number;
   district: string;
   ward: string;
+  district_id?: number;
+  ward_code?: string;
   detail: string;
   is_default: boolean;
   created_at?: string;
@@ -19,8 +22,11 @@ export interface AddressPayload {
   phone: string;
   address: string;
   city?: string;
+  province_id?: number;
   district?: string;
   ward?: string;
+  district_id?: number;
+  ward_code?: string;
   detail?: string;
   is_default?: boolean;
 }
