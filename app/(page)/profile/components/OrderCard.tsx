@@ -2,16 +2,12 @@
 
 import React, { useState } from "react";
 import {
-  LuChevronDown,
-  LuChevronUp,
-  LuCopy,
-  LuShoppingCart,
+  LuCircleCheck,
+  LuShoppingBag,
   LuStar,
+  LuStore,
   LuTruck,
-  LuCheck,
 } from "react-icons/lu";
-
-// ── Types matching backend OrderProduct model ──
 
 export interface OrderItemData {
   product: string | { _id?: string; id?: string };
@@ -61,65 +57,43 @@ export interface OrderData {
   updatedAt: string;
 }
 
-// ── Helpers ──
 function fmtPrice(value: number) {
   return value.toLocaleString("vi-VN") + "đ";
 }
 
-function fmtDate(dateStr: string) {
-  const d = new Date(dateStr);
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const year = d.getFullYear();
-  const hours = String(d.getHours()).padStart(2, "0");
-  const mins = String(d.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} - ${hours}:${mins}`;
-}
-
 const STATUS_MAP: Record<
-  string,
-  { label: string; bg: string; text: string; icon: string }
+  OrderData["status"],
+  { headline: string; label: string; tone: string }
 > = {
   pending: {
-    label: "Chờ xác nhận",
-    bg: "bg-amber-100",
-    text: "text-amber-700",
-    icon: "⏳",
+    headline: "Đơn hàng đang chờ xác nhận",
+    label: "CHỜ XÁC NHẬN",
+    tone: "text-amber-600",
   },
   confirmed: {
-    label: "Đã xác nhận",
-    bg: "bg-sky-100",
-    text: "text-sky-700",
-    icon: "✅",
+    headline: "Đơn hàng đã được xác nhận",
+    label: "ĐÃ XÁC NHẬN",
+    tone: "text-sky-600",
   },
   shipping: {
-    label: "Đang giao",
-    bg: "bg-blue-100",
-    text: "text-blue-700",
-    icon: "🚚",
+    headline: "Đơn hàng đang được giao",
+    label: "ĐANG GIAO",
+    tone: "text-sky-600",
   },
   delivered: {
-    label: "Đã giao",
-    bg: "bg-green-100",
-    text: "text-green-700",
-    icon: "📦",
+    headline: "Giao hàng thành công",
+    label: "HOÀN THÀNH",
+    tone: "text-emerald-600",
   },
   cancelled: {
-    label: "Đã huỷ",
-    bg: "bg-stone-100",
-    text: "text-stone-500",
-    icon: "❌",
+    headline: "Đơn hàng đã huỷ",
+    label: "ĐÃ HUỶ",
+    tone: "text-stone-500",
   },
-};
-
-const PAYMENT_MAP: Record<string, string> = {
-  cod: "Thanh toán khi nhận hàng",
-  bank: "Chuyển khoản ngân hàng",
-  ewallet: "Ví điện tử",
-  card: "Thẻ tín dụng/ghi nợ",
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
 function imgSrc(path?: string) {
   if (!path) return "/placeholder-food.png";
   if (path.startsWith("http")) return path;
@@ -131,7 +105,6 @@ function getProductId(product: OrderItemData["product"]) {
   return product._id || product.id || "";
 }
 
-// ── Component ──
 interface OrderCardProps {
   order: OrderData;
   onReorder?: (orderId: string) => void;
@@ -152,32 +125,12 @@ export default function OrderCard({
   reviewSubmittingKey,
   onReviewSubmit,
 }: OrderCardProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [reviewTarget, setReviewTarget] = useState<OrderItemData | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const statusInfo = STATUS_MAP[order.status] ?? STATUS_MAP.pending;
-
-  const handleCopyId = async () => {
-    try {
-      await navigator.clipboard.writeText(order._id);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
-    }
-  };
-
-  const shortId = order._id.slice(-8).toUpperCase();
   const isDelivered = order.status === "delivered" || order.isDelivered;
-  const reviewableItems = order.shopOrders.flatMap((shopOrder) => shopOrder.items);
-  const hasUnreviewedItems = reviewableItems.some(
-    (item) => !reviewedProductKeys?.has(`${order._id}:${getProductId(item.product)}`),
-  );
-  const firstUnreviewedItem = reviewableItems.find(
-    (item) => !reviewedProductKeys?.has(`${order._id}:${getProductId(item.product)}`),
-  );
+  const canReorder = order.status === "delivered" || order.status === "cancelled";
 
   const openReviewModal = (item: OrderItemData) => {
     setReviewTarget(item);
@@ -210,207 +163,149 @@ export default function OrderCard({
   };
 
   return (
-    <div className="mb-4 overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-      {/* ── Header ── */}
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-amber-100 px-5 py-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-stone-800">
-              Đơn hàng:{" "}
-              <span className="text-orange-600">#{shortId}</span>
-            </span>
-            <button
-              type="button"
-              onClick={handleCopyId}
-              className="cursor-pointer border-none bg-transparent p-0 text-stone-400 transition-colors hover:text-orange-600"
-              title="Sao chép mã đơn"
-            >
-              {copied ? (
-                <LuCheck className="text-sm text-green-500" />
-              ) : (
-                <LuCopy className="text-sm" />
-              )}
-            </button>
-          </div>
-          <p className="m-0 mt-1 text-xs text-stone-400">
-            Đặt ngày: {fmtDate(order.createdAt)}
-          </p>
-          <p className="m-0 mt-0.5 text-sm">
-            Tổng tiền:{" "}
-            <span className="font-bold text-orange-600">
-              {fmtPrice(order.totalPrice)}
-            </span>
-          </p>
-          <p className="m-0 mt-0.5 text-xs text-stone-400">
-            {PAYMENT_MAP[order.paymentMethod] ?? order.paymentMethod}
-          </p>
-        </div>
+    <>
+      {order.shopOrders.map((shopOrder) => {
+        const unreviewedItem = shopOrder.items.find(
+          (item) =>
+            !reviewedProductKeys?.has(
+              `${order._id}:${getProductId(item.product)}`,
+            ),
+        );
+        const hasUnreviewedItem = Boolean(unreviewedItem);
 
-        <div className="flex flex-col items-end gap-2">
-          {/* Status badge */}
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold ${statusInfo.bg} ${statusInfo.text}`}
+        return (
+          <article
+            key={shopOrder._id}
+            className="mb-4 overflow-hidden border border-stone-200 bg-white shadow-sm"
           >
-            <span>{statusInfo.icon}</span>
-            {statusInfo.label}
-          </span>
-
-          {/* Toggle details */}
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="flex cursor-pointer items-center gap-1 border-none bg-transparent text-xs text-stone-400 transition-colors hover:text-stone-600"
-          >
-            {expanded ? "Ẩn chi tiết" : "Xem chi tiết"}
-            {expanded ? <LuChevronUp /> : <LuChevronDown />}
-          </button>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-2">
-            {isDelivered && onReviewSubmit && (
-              <button
-                type="button"
-                disabled={!hasUnreviewedItems}
-                onClick={() => {
-                  if (firstUnreviewedItem) openReviewModal(firstUnreviewedItem);
-                }}
-                className="cursor-pointer rounded-lg border border-orange-200 bg-orange-50 px-4 py-1.5 font-inherit text-xs font-semibold text-orange-600 shadow-sm transition-all hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-stone-200 disabled:bg-stone-50 disabled:text-stone-400"
-              >
-                {hasUnreviewedItems ? "Đánh giá" : "Đã đánh giá"}
-              </button>
-            )}
-            {(order.status === "delivered") && (
-              <button
-                type="button"
-                onClick={() => onReorder?.(order._id)}
-                className="cursor-pointer rounded-lg border-none bg-orange-600 px-4 py-1.5 font-inherit text-xs font-semibold text-white shadow-sm transition-all hover:bg-orange-700"
-              >
-                Mua lại
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Shop orders detail (collapsible) ── */}
-      {expanded && (
-        <div className="animate-[fadeIn_0.2s_ease]">
-          {order.shopOrders.map((shopOrder) => (
-            <div
-              key={shopOrder._id}
-              className="border-b border-amber-50 last:border-b-0"
-            >
-              {/* Shop header */}
-              <div className="flex items-center justify-between bg-amber-50/40 px-5 py-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-100 text-xs">
-                    🏪
-                  </div>
-                  <span className="text-xs font-bold text-stone-700">
-                    {shopOrder.shopName}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-stone-400">
-                  <LuTruck className="text-sm" />
-                  {shopOrder.shippingLabel} · {fmtPrice(shopOrder.shippingPrice)}
-                </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5">
+              <div className="flex min-w-0 items-center gap-2">
+                <LuStore className="shrink-0 text-base text-stone-600" />
+                <span className="truncate text-sm font-extrabold text-stone-900">
+                  {shopOrder.shopName}
+                </span>
               </div>
 
-              {/* Products */}
-              {shopOrder.items.map((item, idx) => (
+              <div className="flex flex-wrap items-center justify-end gap-2 text-xs sm:gap-3">
+                <span
+                  className={`inline-flex items-center gap-1.5 ${statusInfo.tone}`}
+                >
+                  {isDelivered ? (
+                    <LuTruck className="text-base" />
+                  ) : (
+                    <LuShoppingBag className="text-base" />
+                  )}
+                  {statusInfo.headline}
+                </span>
+                <span className="h-4 w-px bg-stone-200" />
+                <span className="font-medium uppercase text-orange-600">
+                  {statusInfo.label}
+                </span>
+              </div>
+            </div>
+
+            <div className="divide-y divide-stone-100">
+              {shopOrder.items.map((item, index) => (
                 <div
-                  key={`${shopOrder._id}-${idx}`}
-                  className="flex items-center gap-3 border-b border-amber-50/60 px-5 py-3 last:border-b-0"
+                  key={`${shopOrder._id}-${index}`}
+                  className="flex gap-3 px-4 py-4 sm:px-5"
                 >
                   <img
                     src={imgSrc(item.image)}
                     alt={item.name}
-                    className="h-12 w-12 shrink-0 rounded-lg border border-amber-200 bg-amber-100 object-cover"
+                    className="h-20 w-20 shrink-0 border border-stone-200 bg-stone-50 object-cover"
                   />
+
                   <div className="min-w-0 flex-1">
-                    <p className="m-0 line-clamp-1 text-sm font-medium text-stone-800">
-                      {item.name}
-                    </p>
-                    <p className="m-0 text-xs text-stone-400">
-                      {fmtPrice(item.price)} × {item.quantity}
-                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="m-0 line-clamp-2 text-sm leading-5 text-stone-900">
+                          {item.name}
+                        </p>
+                        <p className="m-0 mt-1 text-sm text-stone-500">
+                          Phân loại hàng: {shopOrder.shippingLabel}
+                        </p>
+                        <p className="m-0 mt-1 text-sm text-stone-900">
+                          x{item.quantity}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 text-left sm:text-right">
+                        <span className="text-sm text-orange-600">
+                          {fmtPrice(item.price)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold text-stone-800">
-                    {fmtPrice(item.itemTotal)}
-                  </span>
                 </div>
               ))}
+            </div>
 
-              {/* Shop note */}
-              {shopOrder.note && (
-                <div className="flex items-center gap-2 bg-amber-50/20 px-5 py-2 text-xs text-stone-400">
-                  <span>📝</span>
-                  <span className="italic">{shopOrder.note}</span>
-                </div>
-              )}
+            {shopOrder.note && (
+              <div className="border-t border-stone-100 bg-stone-50 px-4 py-2 text-xs text-stone-500 sm:px-5">
+                Ghi chú: {shopOrder.note}
+              </div>
+            )}
 
-              {/* Shop total row */}
-              <div className="flex items-center justify-between border-t border-amber-100/60 px-5 py-2.5">
-                <span className="text-xs text-stone-500">Tổng shop</span>
-                <span className="text-sm font-bold text-orange-600">
+            <div className="border-t border-stone-200 bg-white">
+              <div className="flex items-center justify-end gap-3 px-4 py-3 sm:px-5">
+                <span className="text-sm text-stone-900">Thành tiền:</span>
+                <span className="text-2xl font-medium text-orange-600">
                   {fmtPrice(shopOrder.shopTotal)}
                 </span>
               </div>
-            </div>
-          ))}
 
-          {/* ── Grand total summary ── */}
-          <div className="border-t border-amber-200 bg-gradient-to-r from-amber-50/40 to-orange-50/30 px-5 py-3">
-            <div className="flex items-center justify-between text-xs text-stone-500">
-              <span>Tổng tiền sản phẩm</span>
-              <span>{fmtPrice(order.subtotal)}</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between text-xs text-stone-500">
-              <span>Tổng phí vận chuyển</span>
-              <span>{fmtPrice(order.shippingTotal)}</span>
-            </div>
-            <div className="mt-2 flex items-center justify-between border-t border-amber-200/60 pt-2">
-              <span className="text-sm font-bold text-amber-900">
-                Thành tiền
-              </span>
-              <span className="text-base font-extrabold text-orange-600">
-                {fmtPrice(order.totalPrice)}
-              </span>
-            </div>
-          </div>
+              <div className="flex flex-col gap-3 border-t border-stone-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <div className="text-xs text-stone-500">
+                  Mã đơn: #{order._id.slice(-8).toUpperCase()}
+                </div>
 
-          {/* Shipping address */}
-          <div className="border-t border-amber-100 px-5 py-3">
-            <p className="m-0 text-xs font-semibold text-stone-600">
-              📍 Địa chỉ giao hàng
-            </p>
-            <p className="m-0 mt-1 text-xs text-stone-500">
-              {order.shippingAddress.fullName} · {order.shippingAddress.phone}
-            </p>
-            <p className="m-0 text-xs text-stone-400">
-              {order.shippingAddress.address}
-            </p>
-          </div>
-        </div>
-      )}
+                <div className="flex flex-wrap justify-end gap-2">
+                  {isDelivered && onReviewSubmit && (
+                    <button
+                      type="button"
+                      disabled={!hasUnreviewedItem}
+                      onClick={() => {
+                        if (unreviewedItem) openReviewModal(unreviewedItem);
+                      }}
+                      className="min-w-36 cursor-pointer border border-orange-600 bg-orange-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:border-stone-200 disabled:bg-stone-100 disabled:text-stone-400"
+                    >
+                      {hasUnreviewedItem ? "Đánh Giá" : "Đã Đánh Giá"}
+                    </button>
+                  )}
 
-      {/* Keyframe */}
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; max-height: 0; }
-          to   { opacity: 1; max-height: 2000px; }
-        }
-      `}</style>
+                  {canReorder && (
+                    <button
+                      type="button"
+                      onClick={() => onReorder?.(order._id)}
+                      className="min-w-28 cursor-pointer border border-stone-200 bg-white px-5 py-2 text-sm font-medium text-stone-700 transition hover:border-orange-300 hover:text-orange-600"
+                    >
+                      Mua Lại
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </article>
+        );
+      })}
 
       {reviewTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
-            <h3 className="m-0 text-lg font-extrabold text-stone-800">
-              Đánh giá sản phẩm
-            </h3>
-            <p className="m-0 mt-1 line-clamp-2 text-sm text-stone-500">
-              {reviewTarget.name}
-            </p>
+          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 text-orange-600">
+                <LuCircleCheck />
+              </div>
+              <div className="min-w-0">
+                <h3 className="m-0 text-lg font-extrabold text-stone-800">
+                  Đánh giá sản phẩm
+                </h3>
+                <p className="m-0 mt-1 line-clamp-2 text-sm text-stone-500">
+                  {reviewTarget.name}
+                </p>
+              </div>
+            </div>
 
             <div className="mt-5">
               <p className="m-0 mb-2 text-sm font-semibold text-stone-700">
@@ -447,7 +342,7 @@ export default function OrderCard({
                 rows={4}
                 maxLength={1000}
                 placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
-                className="w-full resize-none rounded-xl border border-amber-200 bg-amber-50/50 px-3 py-2 text-sm text-stone-800 outline-none transition focus:border-orange-500 focus:bg-white"
+                className="w-full resize-none rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800 outline-none transition focus:border-orange-500 focus:bg-white"
               />
             </label>
 
@@ -455,7 +350,7 @@ export default function OrderCard({
               <button
                 type="button"
                 onClick={closeReviewModal}
-                className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-bold text-stone-600 transition hover:bg-stone-50"
+                className="border border-stone-200 bg-white px-4 py-2 text-sm font-bold text-stone-600 transition hover:bg-stone-50"
               >
                 Hủy
               </button>
@@ -463,11 +358,13 @@ export default function OrderCard({
                 type="button"
                 onClick={handleSubmitReview}
                 disabled={
-                  reviewSubmittingKey === `${order._id}:${getProductId(reviewTarget.product)}`
+                  reviewSubmittingKey ===
+                  `${order._id}:${getProductId(reviewTarget.product)}`
                 }
-                className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="bg-orange-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {reviewSubmittingKey === `${order._id}:${getProductId(reviewTarget.product)}`
+                {reviewSubmittingKey ===
+                `${order._id}:${getProductId(reviewTarget.product)}`
                   ? "Đang gửi..."
                   : "Gửi đánh giá"}
               </button>
@@ -475,6 +372,6 @@ export default function OrderCard({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
