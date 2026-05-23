@@ -1,12 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  LuBanknote,
-  LuBuilding2,
-  LuWallet,
-  LuCreditCard,
-} from "react-icons/lu";
+import { LuBanknote, LuWallet } from "react-icons/lu";
 
 const PAYMENT_METHODS = [
   {
@@ -16,22 +11,10 @@ const PAYMENT_METHODS = [
     iconBg: "bg-orange-100 text-orange-600",
   },
   {
-    id: "bank",
-    label: "Chuyển khoản ngân hàng",
-    icon: <LuBuilding2 />,
-    iconBg: "bg-stone-100 text-stone-500",
-  },
-  {
-    id: "ewallet",
-    label: "Ví điện tử (MoMo, ZaloPay, VNPay)",
+    id: "online",
+    label: "Thanh toán online qua ZaloPay",
     icon: <LuWallet />,
     iconBg: "bg-pink-100 text-pink-600",
-  },
-  {
-    id: "card",
-    label: "Thẻ Visa / Mastercard / JCB",
-    icon: <LuCreditCard />,
-    iconBg: "bg-blue-100 text-blue-600",
   },
 ];
 

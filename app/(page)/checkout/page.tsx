@@ -16,6 +16,11 @@ import type { AppDispatch } from "@/app/store";
 import { createOrder } from "@/apiRequest/order";
 import type { ShopOrderPayload } from "@/apiRequest/order";
 import { getAddresses } from "@/apiRequest/address";
+import { createZaloPayPayment } from "@/apiRequest/payment";
+import {
+	createPaymentOrderId,
+	savePendingZaloPayOrder,
+} from "@/app/utils/zalopayCheckout";
 import type { UserAddress } from "@/app/types/api/address";
 import CheckoutStepper from "./components/CheckoutStepper";
 import CheckoutAddress from "./components/CheckoutAddress";
@@ -34,6 +39,29 @@ const DELIVERY_ESTIMATES = [
 	"3 – 5 ngày",
 	"2 – 4 ngày",
 ];
+
+function getZaloPayOrderUrl(response: any): string {
+	return (
+		response?.data?.order_url ||
+		response?.data?.orderUrl ||
+		response?.metadata?.order_url ||
+		response?.metadata?.orderUrl ||
+		response?.order_url ||
+		response?.orderUrl ||
+		""
+	);
+}
+
+function getCreatedOrderId(response: any): string {
+	const order =
+		response?.data?.order ||
+		response?.data?.data ||
+		response?.data ||
+		response?.metadata?.order ||
+		response?.metadata;
+
+	return order?._id || order?.id || order?.orderId || response?.orderId || "";
+}
 
 export default function CheckoutPage() {
 	const router = useRouter();
@@ -228,9 +256,66 @@ export default function CheckoutPage() {
 				totalPrice: total,
 			};
 
+			if (paymentMethod === "online" || paymentMethod === "ewallet") {
+				const paymentOrderId = createPaymentOrderId();
+				const redirectUrl = `${window.location.origin}/payment-result?checkoutOrderId=${paymentOrderId}`;
+				const paymentResponse = await createZaloPayPayment({
+					orderId: paymentOrderId,
+					bankCode: "",
+					redirectUrl,
+				});
+
+				const orderUrl = getZaloPayOrderUrl(paymentResponse);
+
+				if (paymentResponse.err !== 0 || !orderUrl) {
+					toast.error(
+						paymentResponse.mess || "Không thể tạo thanh toán ZaloPay",
+					);
+					return;
+				}
+
+				savePendingZaloPayOrder({
+					paymentOrderId,
+					orderPayload: {
+						...payload,
+						paymentMethod: "online",
+					},
+				});
+
+				window.location.href = orderUrl;
+				return;
+			}
+
 			const response = await createOrder(payload);
 
 			if (response.err === 0) {
+				if (paymentMethod === "online" || paymentMethod === "ewallet") {
+					const orderId = getCreatedOrderId(response);
+
+					if (!orderId) {
+						toast.error("Không tìm thấy mã đơn hàng để thanh toán ZaloPay");
+						return;
+					}
+
+					const paymentResponse = await createZaloPayPayment({
+						orderId,
+						bankCode: "",
+						redirectUrl: `${window.location.origin}/payment-result`,
+					});
+
+					const orderUrl = getZaloPayOrderUrl(paymentResponse);
+
+					if (paymentResponse.err !== 0 || !orderUrl) {
+						toast.error(
+							paymentResponse.mess || "Không thể tạo thanh toán ZaloPay",
+						);
+						return;
+					}
+
+					window.location.href = orderUrl;
+					return;
+				}
+
 				setShowSuccess(true);
 			} else {
 				toast.error(response.mess || "Đặt hàng thất bại");
