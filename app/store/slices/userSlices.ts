@@ -2,13 +2,19 @@
 
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { AUTH_STATUS, AuthStatus } from "@/app/constants/auth";
-import { loginThunk, logoutThunk, registerThunk } from "@/app/action/authAction";
+import {
+  loginThunk,
+  logoutThunk,
+  registerThunk,
+  updateProfileThunk,
+} from "@/app/action/authAction";
 import { UserRole } from "@/app/types/api/auth";
 
 
 
 export interface User {
-  id: string;
+  id?: string;
+  _id?: string;
   full_name: string;
   email: string;
   phone: string | null;
@@ -21,6 +27,7 @@ export interface User {
 export interface UpdateProfilePayload {
   full_name: string;
   email: string;
+  phone?: string | null;
 }
 
 export interface UserState {
@@ -153,6 +160,19 @@ const userSlice = createSlice({
         state.status = AUTH_STATUS.UNAUTHENTICATED;
         state.user = null;
         state.error = null;
+      })
+      .addCase(updateProfileThunk.pending, (state) => {
+        state.status = AUTH_STATUS.LOADING;
+        state.error = null;
+      })
+      .addCase(updateProfileThunk.fulfilled, (state, action) => {
+        state.status = AUTH_STATUS.AUTHENTICATED;
+        state.user = action.payload.data;
+        state.error = null;
+      })
+      .addCase(updateProfileThunk.rejected, (state, action) => {
+        state.status = state.user ? AUTH_STATUS.AUTHENTICATED : AUTH_STATUS.UNAUTHENTICATED;
+        state.error = action.payload || "Cập nhật thông tin thất bại";
       });
   },
 });

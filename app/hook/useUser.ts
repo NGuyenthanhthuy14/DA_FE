@@ -9,8 +9,13 @@ import {
   selectUser,
 } from "@/app/store/slices/userSlices";
 import { useCallback } from "react";
-import { loginThunk, logoutThunk, registerThunk } from "../action/authAction";
-import { LoginRequest, RegisterRequest } from "../types/api/auth";
+import {
+  loginThunk,
+  logoutThunk,
+  registerThunk,
+  updateProfileThunk,
+} from "../action/authAction";
+import { LoginRequest, RegisterRequest, UpdateProfileRequest } from "../types/api/auth";
 
 export function useUser() {
   const dispatch = useDispatch<AppDispatch>();
@@ -40,6 +45,13 @@ export function useUser() {
     const result = await dispatch(logoutThunk()).unwrap();
     return result;
   }, [dispatch]);
+  const updateProfileHook = useCallback(
+    async (payload: UpdateProfileRequest) => {
+      const result = await dispatch(updateProfileThunk(payload)).unwrap();
+      return result;
+    },
+    [dispatch]
+  );
 
   return {
     dispatch,
@@ -52,5 +64,6 @@ export function useUser() {
     registerHook,
     loginHook,
     logoutHook,
+    updateProfileHook,
   };
 }

@@ -27,3 +27,17 @@ export interface ShopsResponse {
   message: string;
   metadata: Shop[];
 }
+
+export interface FavoriteShopsResponse {
+  err: number;
+  mess: string;
+  data: Shop[];
+}
+
+export interface FavoriteShopMutationResponse {
+  err: number;
+  mess: string;
+  data: {
+    favorite_shops?: Shop[];
+  } | null;
+}

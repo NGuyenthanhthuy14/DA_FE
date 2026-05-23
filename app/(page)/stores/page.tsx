@@ -7,6 +7,11 @@ import StoreBanner from "./components/store-banner";
 import StoreCard from "./components/store-card";
 import StoreCardSkeleton from "./components/store-card-skeleton";
 import { useShopAPI } from "@/app/services/useShop";
+import {
+    addFavoriteShop,
+    getFavoriteShops,
+    removeFavoriteShop,
+} from "@/apiRequest/shops";
 import { getShopsWithSpecialties } from "@/apiRequest/specialtyShop";
 import { useUser } from "@/app/hook/useUser";
 import Pagination from "../products/components/pagination";
@@ -64,6 +69,9 @@ export default function StorePage() {
     const { isAuthenticated } = useUser();
     const router = useRouter();
     const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+    const [favoritePendingIds, setFavoritePendingIds] = useState<Set<string>>(
+        new Set(),
+    );
     const [currentPage, setCurrentPage] = useState(1);
     const [userLocation, setUserLocation] = useState<{
         lat: number;
@@ -75,6 +83,32 @@ export default function StorePage() {
 
     const stores = shop?.metadata ?? [];
     const loading = !shop;
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            setLikedIds(new Set());
+            return;
+        }
+
+        let ignore = false;
+
+        async function fetchFavoriteShops() {
+            try {
+                const res = await getFavoriteShops();
+                if (!ignore && res.err === 0 && Array.isArray(res.data)) {
+                    setLikedIds(new Set(res.data.map((item) => item._id)));
+                }
+            } catch (error) {
+                console.error("Lỗi khi lấy shop yêu thích:", error);
+            }
+        }
+
+        fetchFavoriteShops();
+
+        return () => {
+            ignore = true;
+        };
+    }, [isAuthenticated]);
 
     // Get user location
     useEffect(() => {
@@ -134,7 +168,7 @@ export default function StorePage() {
         return withDist;
     }, [stores, userLocation]);
 
-    const handleToggleLike = (id: string) => {
+    const handleToggleLike = async (id: string) => {
         // Kiểm tra xác thực - nếu chưa đăng nhập, redirect đến trang login
         if (!isAuthenticated) {
             toast.error(
@@ -144,15 +178,58 @@ export default function StorePage() {
             return;
         }
 
+        if (favoritePendingIds.has(id)) return;
+
+        const wasLiked = likedIds.has(id);
+
         setLikedIds((prev) => {
             const next = new Set(prev);
-            if (next.has(id)) {
+            if (wasLiked) {
                 next.delete(id);
             } else {
                 next.add(id);
             }
             return next;
         });
+        setFavoritePendingIds((prev) => new Set(prev).add(id));
+
+        try {
+            const res = wasLiked
+                ? await removeFavoriteShop(id)
+                : await addFavoriteShop(id);
+
+            if (res.err !== 0) {
+                throw new Error(res.mess || "Không thể cập nhật shop yêu thích");
+            }
+
+            toast.success(
+                wasLiked
+                    ? "Đã bỏ shop khỏi danh sách yêu thích"
+                    : "Đã thêm shop vào danh sách yêu thích",
+            );
+        } catch (error: unknown) {
+            setLikedIds((prev) => {
+                const next = new Set(prev);
+                if (wasLiked) {
+                    next.add(id);
+                } else {
+                    next.delete(id);
+                }
+                return next;
+            });
+
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Không thể cập nhật shop yêu thích";
+            toast.error(message);
+        } finally {
+            setFavoritePendingIds((prev) => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
+        }
     };
 
     // Tìm specialties cho 1 shop theo _id hoặc slug
@@ -208,6 +285,9 @@ export default function StorePage() {
                                             store.slug,
                                         )}
                                         liked={likedIds.has(store._id)}
+                                        likeDisabled={favoritePendingIds.has(
+                                            store._id,
+                                        )}
                                         onToggleLike={() =>
                                             handleToggleLike(store._id)
                                         }

@@ -68,8 +68,7 @@ export default function ProductDetail({
   // Get related products (same type, exclude current)
   const relatedProducts = allProducts.filter(
     (p) =>
-      p._id !== slug &&
-      (productDetail ? p.type === productDetail.type : true)
+      p._id !== slug && (productDetail ? p.type === productDetail.type : true),
   );
 
   if (loading) {
@@ -106,10 +105,7 @@ export default function ProductDetail({
 
         {/* Top Section: Gallery + Info */}
         <div className="grid gap-10 lg:grid-cols-2">
-          <ProductGallery
-            image={img}
-            name={productDetail.name}
-          />
+          <ProductGallery image={img} name={productDetail.name} />
 
           <ProductInfo
             productId={productDetail._id}

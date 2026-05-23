@@ -9,7 +9,8 @@ export interface RegisterRequest {
 export type UserRole = "user" | "vendor" | "admin";
 
 export interface User {
-  id: string;
+  id?: string;
+  _id?: string;
   full_name: string;
   email: string;
   phone: string | null;
@@ -41,4 +42,16 @@ export interface LoginResponse {
 export interface LogoutResponse {
   err: number;
   mess: string;
+}
+
+export interface UpdateProfileRequest {
+  full_name: string;
+  email: string;
+  phone?: string;
+}
+
+export interface UpdateProfileResponse {
+  err: number;
+  mess: string;
+  data: User;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { BiHeart, BiSolidStar } from "react-icons/bi";
+import { BiHeart, BiSolidHeart, BiSolidStar } from "react-icons/bi";
 import { HiLocationMarker } from "react-icons/hi";
 import Link from "next/link";
 
@@ -31,6 +31,7 @@ export interface StoreCardProps {
   tags?: string[];
   specialties?: StoreCardSpecialty[];
   liked?: boolean;
+  likeDisabled?: boolean;
   onToggleLike?: () => void;
 }
 
@@ -48,6 +49,7 @@ export default function StoreCard({
   tags,
   specialties,
   liked,
+  likeDisabled,
   onToggleLike,
 }: StoreCardProps) {
   return (
@@ -90,14 +92,20 @@ export default function StoreCard({
           </h3>
           <button
             type="button"
-            className="shrink-0 bg-transparent border-none cursor-pointer p-1 text-[#b8a99a] text-[1.35rem] transition-all duration-200 leading-none hover:text-red-500 hover:scale-[1.15]"
+            disabled={likeDisabled}
+            className="shrink-0 bg-transparent border-none cursor-pointer p-1 text-[#b8a99a] text-[1.35rem] transition-all duration-200 leading-none hover:text-red-500 hover:scale-[1.15] disabled:cursor-not-allowed disabled:opacity-60"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               onToggleLike?.();
             }}
+            aria-label={liked ? "Bỏ shop yêu thích" : "Thêm shop yêu thích"}
           >
-            <BiHeart className={liked ? "text-red-500" : ""} />
+            {liked ? (
+              <BiSolidHeart className="text-red-500" />
+            ) : (
+              <BiHeart />
+            )}
           </button>
         </div>
 

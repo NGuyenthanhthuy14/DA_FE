@@ -5,10 +5,13 @@ import {
   LogoutResponse,
   RegisterRequest,
   RegisterResponse,
+  UpdateProfileRequest,
+  UpdateProfileResponse,
 } from "@/app/types/api/auth";
 import { register as registerApi } from "@/apiRequest/auth";
 import { login as loginApi } from "@/apiRequest/auth";
 import { logout as logoutApi } from "@/apiRequest/auth";
+import { updateProfile as updateProfileApi } from "@/apiRequest/auth";
 
 export const registerThunk = createAsyncThunk<
   RegisterResponse,
@@ -72,3 +75,24 @@ export const logoutThunk = createAsyncThunk<LogoutResponse | null, void>(
     }
   }
 );
+
+export const updateProfileThunk = createAsyncThunk<
+  UpdateProfileResponse,
+  UpdateProfileRequest,
+  { rejectValue: string }
+>("auth/updateProfile", async (payload, { rejectWithValue }) => {
+  try {
+    const res = await updateProfileApi(payload);
+
+    if (res.err !== 0) {
+      return rejectWithValue(res.mess);
+    }
+
+    return res;
+  } catch (error: unknown) {
+    const apiError = error as { message?: string; mess?: string };
+    return rejectWithValue(
+      apiError?.message || apiError?.mess || "Cập nhật thông tin thất bại"
+    );
+  }
+});

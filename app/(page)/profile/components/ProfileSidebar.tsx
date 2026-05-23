@@ -17,10 +17,18 @@ import {
 
 const MENU_ITEMS = [
   { href: "/profile", label: "Trang cá nhân", icon: <LuUser /> },
-  { href: "/profile/account", label: "Thông tin tài khoản", icon: <LuFileText /> },
+  {
+    href: "/profile/account",
+    label: "Thông tin tài khoản",
+    icon: <LuFileText />,
+  },
   { href: "/profile/addresses", label: "Sổ địa chỉ", icon: <LuMapPin /> },
-  { href: "/profile/orders", label: "Lịch sử đặt hàng", icon: <LuClipboardList /> },
-  { href: "/profile/wishlist", label: "Đơn yêu thích", icon: <LuHeart /> },
+  {
+    href: "/profile/orders",
+    label: "Lịch sử đặt hàng",
+    icon: <LuClipboardList />,
+  },
+  { href: "/profile/wishlist", label: "Shop yêu thích", icon: <LuHeart /> },
   { href: "/profile/reviews", label: "Đánh giá của tôi", icon: <LuStar /> },
   { href: "/profile/notifications", label: "Thông báo", icon: <LuBell /> },
 ];
@@ -52,7 +60,9 @@ export default function ProfileSidebar({
                   : "bg-transparent text-stone-600 hover:bg-amber-50 hover:text-amber-900"
               }`}
             >
-              <span className={`text-lg ${isActive ? "text-white" : "text-stone-400"}`}>
+              <span
+                className={`text-lg ${isActive ? "text-white" : "text-stone-400"}`}
+              >
                 {item.icon}
               </span>
               {item.label}

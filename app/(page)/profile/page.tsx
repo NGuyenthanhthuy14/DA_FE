@@ -8,6 +8,27 @@ import type { AppDispatch } from "@/app/store";
 import ProfileSidebar from "./components/ProfileSidebar";
 import ProfileOverview from "./components/ProfileOverview";
 import OrderHistory from "./components/OrderHistory";
+import AccountInfo from "./components/AccountInfo";
+import FavoriteShops from "./components/FavoriteShops";
+
+const comingSoonMessages: Record<string, { icon: string; message: string }> = {
+  "/profile/addresses": {
+    icon: "📍",
+    message: "Trang sổ địa chỉ đang phát triển",
+  },
+  "/profile/wishlist": {
+    icon: "❤️",
+    message: "Trang yêu thích đang phát triển",
+  },
+  "/profile/reviews": {
+    icon: "⭐",
+    message: "Trang đánh giá đang phát triển",
+  },
+  "/profile/notifications": {
+    icon: "🔔",
+    message: "Trang thông báo đang phát triển",
+  },
+};
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -19,58 +40,31 @@ export default function ProfilePage() {
     router.push("/");
   };
 
-  // Render content dựa trên tab active
+  const renderComingSoon = (tab: string) => {
+    const item = comingSoonMessages[tab];
+
+    return (
+      <div className="flex flex-col items-center py-16 text-center">
+        <span className="mb-3 text-5xl">{item.icon}</span>
+        <p className="m-0 text-sm text-stone-400">{item.message}</p>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case "/profile":
         return <ProfileOverview />;
+      case "/profile/account":
+        return <AccountInfo />;
       case "/profile/orders":
         return <OrderHistory />;
-      case "/profile/account":
-        return (
-          <div className="flex flex-col items-center py-16 text-center">
-            <span className="mb-3 text-5xl">📝</span>
-            <p className="m-0 text-sm text-stone-400">
-              Trang thông tin tài khoản đang phát triển
-            </p>
-          </div>
-        );
-      case "/profile/addresses":
-        return (
-          <div className="flex flex-col items-center py-16 text-center">
-            <span className="mb-3 text-5xl">📍</span>
-            <p className="m-0 text-sm text-stone-400">
-              Trang sổ địa chỉ đang phát triển
-            </p>
-          </div>
-        );
       case "/profile/wishlist":
-        return (
-          <div className="flex flex-col items-center py-16 text-center">
-            <span className="mb-3 text-5xl">❤️</span>
-            <p className="m-0 text-sm text-stone-400">
-              Trang yêu thích đang phát triển
-            </p>
-          </div>
-        );
+        return <FavoriteShops />;
+      case "/profile/addresses":
       case "/profile/reviews":
-        return (
-          <div className="flex flex-col items-center py-16 text-center">
-            <span className="mb-3 text-5xl">⭐</span>
-            <p className="m-0 text-sm text-stone-400">
-              Trang đánh giá đang phát triển
-            </p>
-          </div>
-        );
       case "/profile/notifications":
-        return (
-          <div className="flex flex-col items-center py-16 text-center">
-            <span className="mb-3 text-5xl">🔔</span>
-            <p className="m-0 text-sm text-stone-400">
-              Trang thông báo đang phát triển
-            </p>
-          </div>
-        );
+        return renderComingSoon(activeTab);
       default:
         return <OrderHistory />;
     }
@@ -78,14 +72,12 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 lg:flex-row">
-      {/* Sidebar */}
       <ProfileSidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onLogout={handleLogout}
       />
 
-      {/* Content */}
       <main className="min-w-0 flex-1">{renderContent()}</main>
     </div>
   );
