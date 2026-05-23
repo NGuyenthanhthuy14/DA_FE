@@ -5,7 +5,6 @@ import type { Shop as SpecialtyShop, Specialty } from "@/app/types/api/specialty
 import { getShopsWithSpecialties } from "@/apiRequest/specialtyShop";
 
 import HeroSection from "./components/hero-section";
-import RegionTabs from "./components/region-tabs";
 import SpecialtyGrid from "./components/specialty-grid";
 import StorySection from "./components/story-section";
 import TrustBadges from "../products/[slug]/components/trust-badges";
@@ -15,12 +14,6 @@ function SpecialtySkeleton() {
   return (
     <div className="space-y-8">
       <div className="h-72 animate-pulse rounded-3xl bg-gray-100" />
-
-      <div className="flex justify-center gap-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-10 w-24 animate-pulse rounded-full bg-gray-100" />
-        ))}
-      </div>
 
       <div className="flex gap-5 overflow-hidden">
         {Array.from({ length: 5 }).map((_, i) => (
@@ -35,9 +28,6 @@ export default function SpecialtiesPage() {
   const [shops, setShops] = useState<SpecialtyShop[]>([]);
   const [loading, setLoading] = useState(true);
 
-
-  const [activeRegion, setActiveRegion] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState<
     { specialty: Specialty; shopName: string; region: Region | null } | undefined
   >(undefined);
@@ -97,22 +87,6 @@ export default function SpecialtiesPage() {
     return Array.from(seen.values());
   }, [shops, shopRegions]);
 
-  const regionFiltered = useMemo(() => {
-    if (activeRegion === "all") return allSpecialties;
-    return allSpecialties.filter((item) => item.region === activeRegion);
-  }, [allSpecialties, activeRegion]);
-
-  const searchFiltered = useMemo(() => {
-    if (!searchQuery.trim()) return regionFiltered;
-    const q = searchQuery.toLowerCase();
-    return regionFiltered.filter(
-      ({ specialty, shopName }) =>
-        specialty.name.toLowerCase().includes(q) ||
-        shopName.toLowerCase().includes(q) ||
-        (specialty.description || "").toLowerCase().includes(q)
-    );
-  }, [regionFiltered, searchQuery]);
-
   const handleReadStory = useCallback(
     (item: { specialty: Specialty; shopName: string }) => {
       setSelectedSpecialty(item as typeof selectedSpecialty);
@@ -135,10 +109,8 @@ export default function SpecialtiesPage() {
           <SpecialtySkeleton />
         ) : (
           <>
-            <RegionTabs active={activeRegion} onChange={setActiveRegion} />
-
             <SpecialtyGrid
-              specialties={searchFiltered}
+              specialties={allSpecialties}
               onReadStory={handleReadStory}
             />
 

@@ -68,7 +68,7 @@ export default function Banner({
             </h1>
 
             <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-amber-100">
-              <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-300 px-3 py-1.5 font-bold text-amber-950 shadow-[0_8px_22px_rgba(245,158,11,0.28)]">
                 <BiStar className="text-amber-200" />
                 <span>
                   <strong className="text-amber-50">{rating}</strong> ({reviews}{" "}
@@ -87,7 +87,7 @@ export default function Banner({
               <div className="flex items-center gap-2">
                 <BiMapPin />
                 <span>
-                  Cách <strong className="text-amber-50">{distance}</strong>
+                  Cách <strong>{distance}</strong>
                 </span>
               </div>
             </div>

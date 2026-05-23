@@ -9,7 +9,6 @@ import {
   BiMenu,
   BiX,
   BiCart,
-  BiChevronDown,
   BiUserCircle,
   BiHeart,
   BiLogOut,
@@ -78,10 +77,17 @@ export default function Navbar() {
     router.refresh();
   };
 
+  const handleLoginClick = () => {
+    setOpen(false);
+    setOpenDropdown(false);
+    router.push("/auth/login");
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+      router.push(`/search?keyword=${encodeURIComponent(searchQuery.trim())}`);
+      setOpen(false);
     }
   };
 
@@ -135,7 +141,7 @@ export default function Navbar() {
             {canShowAuthenticatedUI && (
               <Link
                 href="/cart"
-                className="flex flex-col items-center gap-0.5 text-[#5a3e2b] transition hover:text-primary"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#5a3e2b]"
               >
                 <div className="relative">
                   <BiCart className="text-2xl" />
@@ -196,26 +202,39 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <Link
-                href="/auth/login"
-                className="flex flex-col items-center gap-0.5 text-[#5a3e2b] transition hover:text-primary"
+              <button
+                type="button"
+                onClick={handleLoginClick}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-full border-none bg-primary px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#5a3e2b]"
               >
-                <BiUserCircle className="text-2xl" />
-                <span className="text-[11px] font-semibold">Tài khoản</span>
-              </Link>
+                <BiUserCircle className="text-lg" />
+                <span>Đăng nhập</span>
+              </button>
             )}
           </div>
 
-          <button
-            onClick={() => setOpen((prev) => !prev)}
-            className="inline-flex rounded-xl border border-amber-200 bg-white p-2 text-primary lg:hidden"
-          >
-            {open ? (
-              <BiX className="text-2xl" />
-            ) : (
-              <BiMenu className="text-2xl" />
+          <div className="flex shrink-0 items-center gap-2 lg:hidden">
+            {!canShowAuthenticatedUI && (
+              <button
+                type="button"
+                onClick={handleLoginClick}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border-none bg-primary px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#5a3e2b]"
+              >
+                <BiUserCircle className="text-base" />
+                Đăng nhập
+              </button>
             )}
-          </button>
+            <button
+              onClick={() => setOpen((prev) => !prev)}
+              className="inline-flex rounded-xl border border-amber-200 bg-white p-2 text-primary"
+            >
+              {open ? (
+                <BiX className="text-2xl" />
+              ) : (
+                <BiMenu className="text-2xl" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -319,14 +338,14 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            <Link
-              href="/auth/login"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-center text-sm font-semibold text-primary"
+            <button
+              type="button"
+              onClick={handleLoginClick}
+              className="flex cursor-pointer items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-left text-sm font-semibold text-primary"
             >
               <BiUserCircle className="text-lg" />
               Đăng nhập
-            </Link>
+            </button>
           )}
         </div>
       </motion.div>

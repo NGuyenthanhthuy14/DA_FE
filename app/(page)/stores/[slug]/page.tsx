@@ -35,6 +35,27 @@ const CATEGORY_EMOJI: Record<string, string> = {
   "Tráng miệng": "🍰",
 };
 
+function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistanceKm(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)}m`;
+  return `${km.toFixed(1)}km`;
+}
+
 export default function StoreDetail({
   params,
 }: {
@@ -47,10 +68,30 @@ export default function StoreDetail({
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState("all");
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   const { shopDetail } = useShopDetail(slug);
   const { product } = useProduct();
   const loading = !product || !shopDetail;
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setUserLocation({ lat: 21.0285, lng: 105.8542 });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        setUserLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        }),
+      () => setUserLocation({ lat: 21.0285, lng: 105.8542 }),
+    );
+  }, []);
 
   const productsByShop = useMemo(
     () => product?.data.filter((p) => p.shop_id === shopDetail?._id) || [],
@@ -135,6 +176,20 @@ export default function StoreDetail({
     return productsByShop.filter((p) => p.category_id === activeCategory);
   }, [productsByShop, activeCategory]);
 
+  const shopDistance = useMemo(() => {
+    if (!shopDetail || !userLocation) return undefined;
+    if (!shopDetail.latitude || !shopDetail.longitude) return undefined;
+
+    return formatDistanceKm(
+      haversineKm(
+        userLocation.lat,
+        userLocation.lng,
+        shopDetail.latitude,
+        shopDetail.longitude,
+      ),
+    );
+  }, [shopDetail, userLocation]);
+
   return (
     <>
       <div
@@ -145,6 +200,7 @@ export default function StoreDetail({
           name={shopDetail?.name}
           cuisine={shopDetail?.description || "Ẩm thực truyền thống"}
           area={shopDetail?.formatted_address || shopDetail?.address}
+          distance={shopDistance}
           coverImage={shopDetail?.cover_image || undefined}
         />
 

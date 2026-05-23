@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { BiHeart, BiSolidHeart, BiSolidStar } from "react-icons/bi";
+import { BiHeart, BiNavigation, BiSolidHeart, BiSolidStar } from "react-icons/bi";
 import { HiLocationMarker } from "react-icons/hi";
 import Link from "next/link";
 
@@ -141,7 +141,10 @@ export default function StoreCard({
             {distance && (
               <>
                 <span className="text-gray-300 text-[0.65rem]">•</span>
-                <span className="text-[#8b7a6b]">{distance}</span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[0.75rem] font-bold text-amber-800 shadow-sm">
+                  <BiNavigation className="text-[0.85rem]" />
+                  Cách {distance}
+                </span>
               </>
             )}
           </div>
