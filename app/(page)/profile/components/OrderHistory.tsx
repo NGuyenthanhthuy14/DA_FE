@@ -1,37 +1,81 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { useRouter } from "next/navigation";
 import { LuPackage, LuRefreshCw } from "react-icons/lu";
+import { toast } from "sonner";
 import { selectUser } from "@/app/store/slices/userSlices";
+import { addToCart, toggleSelectAll } from "@/app/store/slices/cartSlices";
+import type { AppDispatch } from "@/app/store";
 import { getOrdersByUser } from "@/apiRequest/order";
+import {
+  createProductReview,
+  getMyProductReviews,
+} from "@/apiRequest/productReview";
 import OrderTabs from "./OrderTabs";
 import OrderCard from "./OrderCard";
 import type { OrderData } from "./OrderCard";
+import type { CreateProductReviewRequest } from "@/app/types/api/productReview";
 
 export default function OrderHistory() {
+  const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const user = useSelector(selectUser);
+  const userId = user?.id || user?._id;
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("all");
+  const [reviewedProductKeys, setReviewedProductKeys] = useState<Set<string>>(
+    new Set(),
+  );
+  const [reviewSubmittingKey, setReviewSubmittingKey] = useState<string | null>(
+    null,
+  );
 
-  // ── Fetch orders from API ──
   const fetchOrders = async () => {
-    if (!user?.id) {
+    if (!userId) {
       setLoading(false);
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
-      const response = await getOrdersByUser(user.id);
-      if (response.err === 0 && response.data) {
-        setOrders(response.data);
+      const [ordersResponse, reviewsResponse] = await Promise.all([
+        getOrdersByUser(userId),
+        getMyProductReviews(),
+      ]);
+
+      if (ordersResponse.err === 0 && ordersResponse.data) {
+        setOrders(ordersResponse.data);
       } else {
-        setError(response.mess || "Không thể tải đơn hàng");
+        setError(ordersResponse.mess || "Không thể tải đơn hàng");
       }
-    } catch (err: any) {
+
+      if (reviewsResponse.err === 0 && Array.isArray(reviewsResponse.data)) {
+        setReviewedProductKeys(
+          new Set(
+            reviewsResponse.data
+              .map((review) => {
+                const orderId =
+                  typeof review.order === "string"
+                    ? review.order
+                    : review.order?._id;
+                const productId =
+                  typeof review.product === "string"
+                    ? review.product
+                    : review.product?._id;
+
+                return orderId && productId ? `${orderId}:${productId}` : null;
+              })
+              .filter((key): key is string => Boolean(key)),
+          ),
+        );
+      }
+    } catch (err: unknown) {
       console.error("Fetch orders error:", err);
       setError("Có lỗi khi tải đơn hàng. Vui lòng thử lại.");
     } finally {
@@ -42,24 +86,79 @@ export default function OrderHistory() {
   useEffect(() => {
     fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [userId]);
 
-  // ── Filter orders by tab ──
+  const handleReviewSubmit = async (payload: CreateProductReviewRequest) => {
+    const reviewKey = `${payload.orderId}:${payload.productId}`;
+    setReviewSubmittingKey(reviewKey);
+
+    try {
+      const response = await createProductReview(payload);
+      if (response.err !== 0) {
+        throw new Error(response.mess || "Không thể gửi đánh giá");
+      }
+
+      setReviewedProductKeys((prev) => new Set(prev).add(reviewKey));
+      toast.success("Gửi đánh giá thành công");
+    } catch (reviewError: unknown) {
+      const message =
+        reviewError instanceof Error
+          ? reviewError.message
+          : "Không thể gửi đánh giá";
+      toast.error(message);
+      throw reviewError;
+    } finally {
+      setReviewSubmittingKey(null);
+    }
+  };
+
+  const handleReorder = (orderId: string) => {
+    const order = orders.find((item) => item._id === orderId);
+    if (!order) return;
+
+    dispatch(toggleSelectAll(false));
+
+    let itemCount = 0;
+    order.shopOrders.forEach((shopOrder) => {
+      shopOrder.items.forEach((item) => {
+        dispatch(
+          addToCart({
+            productId:
+              typeof item.product === "string"
+                ? item.product
+                : item.product._id || item.product.id || "",
+            name: item.name,
+            image: item.image,
+            price: item.price,
+            discount: 0,
+            quantity: item.quantity,
+            countInStock: 0,
+            shopId: shopOrder.shop,
+            shopName: shopOrder.shopName,
+            slug: "",
+          }),
+        );
+        itemCount += item.quantity;
+      });
+    });
+
+    toast.success(`Đã thêm ${itemCount} sản phẩm vào giỏ hàng`);
+    router.push("/cart");
+  };
+
   const filteredOrders = useMemo(() => {
     if (activeTab === "all") return orders;
-    return orders.filter((o) => o.status === activeTab);
+    return orders.filter((order) => order.status === activeTab);
   }, [orders, activeTab]);
 
-  // ── Count per status for tab badges ──
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: orders.length };
-    orders.forEach((o) => {
-      counts[o.status] = (counts[o.status] || 0) + 1;
+    orders.forEach((order) => {
+      counts[order.status] = (counts[order.status] || 0) + 1;
     });
     return counts;
   }, [orders]);
 
-  // ── Loading state ──
   if (loading) {
     return (
       <div>
@@ -67,26 +166,14 @@ export default function OrderHistory() {
           Lịch sử đặt hàng
         </h1>
         <div className="flex flex-col gap-4">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3].map((item) => (
             <div
-              key={i}
+              key={item}
               className="animate-pulse rounded-2xl border border-amber-200 bg-white p-5"
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="h-4 w-40 rounded bg-stone-200" />
-                  <div className="mt-2 h-3 w-32 rounded bg-stone-100" />
-                  <div className="mt-2 h-4 w-28 rounded bg-stone-200" />
-                </div>
-                <div className="h-6 w-24 rounded-lg bg-stone-100" />
-              </div>
-              <div className="mt-4 flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg bg-stone-100" />
-                <div className="flex-1">
-                  <div className="h-3 w-48 rounded bg-stone-100" />
-                  <div className="mt-1 h-3 w-24 rounded bg-stone-100" />
-                </div>
-              </div>
+              <div className="h-4 w-40 rounded bg-stone-200" />
+              <div className="mt-3 h-3 w-56 rounded bg-stone-100" />
+              <div className="mt-5 h-14 rounded-xl bg-stone-100" />
             </div>
           ))}
         </div>
@@ -94,7 +181,6 @@ export default function OrderHistory() {
     );
   }
 
-  // ── Error state ──
   if (error) {
     return (
       <div>
@@ -102,12 +188,11 @@ export default function OrderHistory() {
           Lịch sử đặt hàng
         </h1>
         <div className="flex flex-col items-center rounded-2xl border border-red-200 bg-red-50 py-12 text-center">
-          <span className="mb-3 text-4xl">⚠️</span>
           <p className="m-0 mb-4 text-sm text-red-600">{error}</p>
           <button
             type="button"
             onClick={fetchOrders}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-orange-400 bg-white px-5 py-2 font-inherit text-sm font-semibold text-orange-600 transition-all hover:bg-orange-50"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-orange-400 bg-white px-5 py-2 text-sm font-semibold text-orange-600 transition-all hover:bg-orange-50"
           >
             <LuRefreshCw className="text-sm" />
             Thử lại
@@ -117,15 +202,13 @@ export default function OrderHistory() {
     );
   }
 
-  // ── Not logged in ──
-  if (!user?.id) {
+  if (!userId) {
     return (
       <div>
         <h1 className="m-0 mb-5 text-xl font-extrabold text-stone-800">
           Lịch sử đặt hàng
         </h1>
         <div className="flex flex-col items-center py-16 text-center">
-          <span className="mb-3 text-5xl">🔒</span>
           <p className="m-0 text-sm text-stone-400">
             Vui lòng đăng nhập để xem lịch sử đặt hàng.
           </p>
@@ -143,7 +226,7 @@ export default function OrderHistory() {
         <button
           type="button"
           onClick={fetchOrders}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-1.5 font-inherit text-xs font-medium text-stone-500 transition-all hover:border-orange-300 hover:text-orange-600"
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-500 transition-all hover:border-orange-300 hover:text-orange-600"
         >
           <LuRefreshCw className="text-sm" />
           Làm mới
@@ -164,10 +247,17 @@ export default function OrderHistory() {
       ) : (
         <>
           {filteredOrders.map((order) => (
-            <OrderCard key={order._id} order={order} />
+            <OrderCard
+              key={order._id}
+              order={order}
+              reviewedProductKeys={reviewedProductKeys}
+              reviewSubmittingKey={reviewSubmittingKey}
+              onReviewSubmit={handleReviewSubmit}
+              onReorder={handleReorder}
+            />
           ))}
           <p className="mt-4 text-center text-xs text-stone-400">
-            📦 Hiển thị {filteredOrders.length} / {orders.length} đơn hàng
+            Hiển thị {filteredOrders.length} / {orders.length} đơn hàng
           </p>
         </>
       )}

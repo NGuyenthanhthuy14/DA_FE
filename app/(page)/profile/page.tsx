@@ -10,6 +10,8 @@ import ProfileOverview from "./components/ProfileOverview";
 import OrderHistory from "./components/OrderHistory";
 import AccountInfo from "./components/AccountInfo";
 import FavoriteShops from "./components/FavoriteShops";
+import MyReviews from "./components/MyReviews";
+import AddressBook from "./components/AddressBook";
 
 const comingSoonMessages: Record<string, { icon: string; message: string }> = {
   "/profile/addresses": {
@@ -61,8 +63,10 @@ export default function ProfilePage() {
         return <OrderHistory />;
       case "/profile/wishlist":
         return <FavoriteShops />;
-      case "/profile/addresses":
       case "/profile/reviews":
+        return <MyReviews />;
+      case "/profile/addresses":
+        return <AddressBook />;
       case "/profile/notifications":
         return renderComingSoon(activeTab);
       default:

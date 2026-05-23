@@ -6,6 +6,7 @@ import {
   LuChevronUp,
   LuCopy,
   LuShoppingCart,
+  LuStar,
   LuTruck,
   LuCheck,
 } from "react-icons/lu";
@@ -13,7 +14,7 @@ import {
 // ── Types matching backend OrderProduct model ──
 
 export interface OrderItemData {
-  product: string;
+  product: string | { _id?: string; id?: string };
   name: string;
   image: string;
   price: number;
@@ -125,15 +126,37 @@ function imgSrc(path?: string) {
   return `${API_URL}${path}`;
 }
 
+function getProductId(product: OrderItemData["product"]) {
+  if (typeof product === "string") return product;
+  return product._id || product.id || "";
+}
+
 // ── Component ──
 interface OrderCardProps {
   order: OrderData;
   onReorder?: (orderId: string) => void;
+  reviewedProductKeys?: Set<string>;
+  reviewSubmittingKey?: string | null;
+  onReviewSubmit?: (payload: {
+    orderId: string;
+    productId: string;
+    rating: number;
+    comment: string;
+  }) => Promise<void>;
 }
 
-export default function OrderCard({ order, onReorder }: OrderCardProps) {
+export default function OrderCard({
+  order,
+  onReorder,
+  reviewedProductKeys,
+  reviewSubmittingKey,
+  onReviewSubmit,
+}: OrderCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<OrderItemData | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
   const statusInfo = STATUS_MAP[order.status] ?? STATUS_MAP.pending;
 
   const handleCopyId = async () => {
@@ -147,6 +170,44 @@ export default function OrderCard({ order, onReorder }: OrderCardProps) {
   };
 
   const shortId = order._id.slice(-8).toUpperCase();
+  const isDelivered = order.status === "delivered" || order.isDelivered;
+  const reviewableItems = order.shopOrders.flatMap((shopOrder) => shopOrder.items);
+  const hasUnreviewedItems = reviewableItems.some(
+    (item) => !reviewedProductKeys?.has(`${order._id}:${getProductId(item.product)}`),
+  );
+  const firstUnreviewedItem = reviewableItems.find(
+    (item) => !reviewedProductKeys?.has(`${order._id}:${getProductId(item.product)}`),
+  );
+
+  const openReviewModal = (item: OrderItemData) => {
+    setReviewTarget(item);
+    setReviewRating(5);
+    setReviewComment("");
+  };
+
+  const closeReviewModal = () => {
+    setReviewTarget(null);
+    setReviewComment("");
+    setReviewRating(5);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewTarget || !onReviewSubmit) return;
+    const productId = getProductId(reviewTarget.product);
+    if (!productId) return;
+
+    try {
+      await onReviewSubmit({
+        orderId: order._id,
+        productId,
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      });
+      closeReviewModal();
+    } catch {
+      // Parent shows the error toast; keep the modal open for correction/retry.
+    }
+  };
 
   return (
     <div className="mb-4 overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm transition-shadow hover:shadow-md">
@@ -206,6 +267,18 @@ export default function OrderCard({ order, onReorder }: OrderCardProps) {
 
           {/* Action buttons */}
           <div className="flex items-center gap-2">
+            {isDelivered && onReviewSubmit && (
+              <button
+                type="button"
+                disabled={!hasUnreviewedItems}
+                onClick={() => {
+                  if (firstUnreviewedItem) openReviewModal(firstUnreviewedItem);
+                }}
+                className="cursor-pointer rounded-lg border border-orange-200 bg-orange-50 px-4 py-1.5 font-inherit text-xs font-semibold text-orange-600 shadow-sm transition-all hover:bg-orange-100 disabled:cursor-not-allowed disabled:border-stone-200 disabled:bg-stone-50 disabled:text-stone-400"
+              >
+                {hasUnreviewedItems ? "Đánh giá" : "Đã đánh giá"}
+              </button>
+            )}
             {(order.status === "delivered") && (
               <button
                 type="button"
@@ -328,6 +401,80 @@ export default function OrderCard({ order, onReorder }: OrderCardProps) {
           to   { opacity: 1; max-height: 2000px; }
         }
       `}</style>
+
+      {reviewTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="m-0 text-lg font-extrabold text-stone-800">
+              Đánh giá sản phẩm
+            </h3>
+            <p className="m-0 mt-1 line-clamp-2 text-sm text-stone-500">
+              {reviewTarget.name}
+            </p>
+
+            <div className="mt-5">
+              <p className="m-0 mb-2 text-sm font-semibold text-stone-700">
+                Chất lượng sản phẩm
+              </p>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    className="border-none bg-transparent p-1 text-2xl"
+                    aria-label={`${star} sao`}
+                  >
+                    <LuStar
+                      className={
+                        star <= reviewRating
+                          ? "fill-amber-400 text-amber-400"
+                          : "text-stone-300"
+                      }
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="mt-4 block">
+              <span className="mb-2 block text-sm font-semibold text-stone-700">
+                Bình luận
+              </span>
+              <textarea
+                value={reviewComment}
+                onChange={(event) => setReviewComment(event.target.value)}
+                rows={4}
+                maxLength={1000}
+                placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
+                className="w-full resize-none rounded-xl border border-amber-200 bg-amber-50/50 px-3 py-2 text-sm text-stone-800 outline-none transition focus:border-orange-500 focus:bg-white"
+              />
+            </label>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeReviewModal}
+                className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-bold text-stone-600 transition hover:bg-stone-50"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitReview}
+                disabled={
+                  reviewSubmittingKey === `${order._id}:${getProductId(reviewTarget.product)}`
+                }
+                className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {reviewSubmittingKey === `${order._id}:${getProductId(reviewTarget.product)}`
+                  ? "Đang gửi..."
+                  : "Gửi đánh giá"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

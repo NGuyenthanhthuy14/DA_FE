@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
@@ -15,6 +15,8 @@ import type { AddressData } from "@/app/store/slices/addressSlice";
 import type { AppDispatch } from "@/app/store";
 import { createOrder } from "@/apiRequest/order";
 import type { ShopOrderPayload } from "@/apiRequest/order";
+import { getAddresses } from "@/apiRequest/address";
+import type { UserAddress } from "@/app/types/api/address";
 import CheckoutStepper from "./components/CheckoutStepper";
 import CheckoutAddress from "./components/CheckoutAddress";
 import CheckoutShopOrder from "./components/CheckoutShopOrder";
@@ -37,6 +39,7 @@ export default function CheckoutPage() {
 	const router = useRouter();
 	const dispatch = useDispatch<AppDispatch>();
 	const user = useSelector(selectUser);
+	const userId = user?.id || user?._id;
 	const addressData = useSelector(selectAddress);
 	const { selectedItems, groupedByShop, removeSelected } = useCart();
 
@@ -74,6 +77,53 @@ export default function CheckoutPage() {
 
 	// Address modal
 	const [showEditAddress, setShowEditAddress] = useState(false);
+	const [showAddressSelect, setShowAddressSelect] = useState(false);
+	const [addressBook, setAddressBook] = useState<UserAddress[]>([]);
+
+	const toCheckoutAddress = (address: UserAddress): AddressData => ({
+		fullName: address.fullName,
+		phone: address.phone,
+		address:
+			address.address ||
+			[address.detail, address.ward, address.district, address.city]
+				.filter(Boolean)
+				.join(", "),
+		city: address.city || "",
+		district: address.district || "",
+		ward: address.ward || "",
+		detail: address.detail || "",
+		isDefault: address.is_default,
+	});
+
+	useEffect(() => {
+		if (!userId) return;
+
+		let ignore = false;
+
+		async function fetchAddressBook() {
+			try {
+				const res = await getAddresses();
+				if (ignore || res.err !== 0 || !Array.isArray(res.data)) return;
+
+				setAddressBook(res.data);
+
+				if (!addressData.fullName) {
+					const defaultAddress = res.data.find((item) => item.is_default) || res.data[0];
+					if (defaultAddress) {
+						dispatch(setAddress(toCheckoutAddress(defaultAddress)));
+					}
+				}
+			} catch (error) {
+				console.error("Fetch checkout addresses error:", error);
+			}
+		}
+
+		fetchAddressBook();
+
+		return () => {
+			ignore = true;
+		};
+	}, [addressData.fullName, dispatch, userId]);
 
 	// Dùng user info làm fallback nếu chưa có address lưu
 	const displayAddress: AddressData = addressData.fullName
@@ -98,6 +148,11 @@ export default function CheckoutPage() {
 		setShowEditAddress(false);
 	};
 
+	const handleSelectAddress = (address: UserAddress) => {
+		dispatch(setAddress(toCheckoutAddress(address)));
+		setShowAddressSelect(false);
+	};
+
 	// ── Calculations ──
 	const subtotal = selectedItems.reduce(
 		(sum, item) => sum + calcSalePrice(item.price, item.discount) * item.quantity,
@@ -116,7 +171,7 @@ export default function CheckoutPage() {
 	// ── Place order handler ──
 	const handlePlaceOrder = async () => {
 		if (placing) return;
-		if (!user?.id) {
+		if (!userId) {
 			toast.error("Vui lòng đăng nhập để đặt hàng");
 			return;
 		}
@@ -156,7 +211,7 @@ export default function CheckoutPage() {
 			});
 
 			const payload = {
-				userId: user.id,
+				userId,
 				shippingAddress: {
 					fullName: displayAddress.fullName,
 					phone: displayAddress.phone,
@@ -255,6 +310,8 @@ export default function CheckoutPage() {
 						phone={displayAddress.phone}
 						address={displayAddress.address}
 						onEdit={() => setShowEditAddress(true)}
+						onSelect={() => setShowAddressSelect(true)}
+						hasAddressBook={addressBook.length > 0}
 					/>
 
 					{/* Section 2: Shop Orders */}
@@ -340,6 +397,72 @@ export default function CheckoutPage() {
 				onClose={() => setShowEditAddress(false)}
 				onSave={handleSaveAddress}
 			/>
+
+			{showAddressSelect && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+					<div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
+						<div className="mb-4 flex items-center justify-between">
+							<h2 className="m-0 text-lg font-extrabold text-stone-800">
+								Chọn địa chỉ nhận hàng
+							</h2>
+							<button
+								type="button"
+								onClick={() => setShowAddressSelect(false)}
+								className="rounded-lg px-3 py-1.5 text-sm font-bold text-stone-500 transition hover:bg-stone-100"
+							>
+								Đóng
+							</button>
+						</div>
+
+						<div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
+							{addressBook.map((address) => {
+								const isSelected =
+									displayAddress.fullName === address.fullName &&
+									displayAddress.phone === address.phone &&
+									displayAddress.address === address.address;
+
+								return (
+									<button
+										key={address._id}
+										type="button"
+										onClick={() => handleSelectAddress(address)}
+										className={`w-full rounded-xl border p-4 text-left transition ${
+											isSelected
+												? "border-orange-400 bg-orange-50"
+												: "border-amber-200 bg-white hover:border-orange-300 hover:bg-amber-50/50"
+										}`}
+									>
+										<div className="flex flex-wrap items-center gap-2">
+											<span className="text-sm font-extrabold text-stone-800">
+												{address.label || "Địa chỉ"}
+											</span>
+											{address.is_default && (
+												<span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700">
+													Mặc định
+												</span>
+											)}
+										</div>
+										<p className="m-0 mt-2 text-sm font-semibold text-stone-700">
+											{address.fullName} · {address.phone}
+										</p>
+										<p className="m-0 mt-1 text-sm leading-6 text-stone-500">
+											{[
+												address.detail,
+												address.address,
+												address.ward,
+												address.district,
+												address.city,
+											]
+												.filter(Boolean)
+												.join(", ")}
+										</p>
+									</button>
+								);
+							})}
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

@@ -112,6 +112,12 @@ export const put = async <T = any>(endpoint: string, body?: any, config?: any): 
     return data;
 };
 
+/* ===== PATCH ===== */
+export const patch = async <T = any>(endpoint: string, body?: any, config?: any): Promise<T> => {
+    const { data } = await api.patch(endpoint, body, config);
+    return data;
+};
+
 /* ===== DELETE ===== */
 export const del = async <T = any>(endpoint: string, config?: any): Promise<T> => {
     const { data } = await api.delete(endpoint, config);

@@ -180,16 +180,7 @@ export default function Navbar() {
                         className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-amber-50 hover:text-primary"
                       >
                         <BiUserCircle className="text-lg" />
-                        <span>Thông tin cá nhân</span>
-                      </Link>
-
-                      <Link
-                        href="/favorites"
-                        onClick={() => setOpenDropdown(false)}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-amber-50 hover:text-primary"
-                      >
-                        <BiHeart className="text-lg" />
-                        <span>Yêu thích</span>
+                        <span>Cá nhân</span>
                       </Link>
 
                       <button
@@ -219,7 +210,11 @@ export default function Navbar() {
             onClick={() => setOpen((prev) => !prev)}
             className="inline-flex rounded-xl border border-amber-200 bg-white p-2 text-primary lg:hidden"
           >
-            {open ? <BiX className="text-2xl" /> : <BiMenu className="text-2xl" />}
+            {open ? (
+              <BiX className="text-2xl" />
+            ) : (
+              <BiMenu className="text-2xl" />
+            )}
           </button>
         </div>
       </div>
@@ -233,10 +228,11 @@ export default function Navbar() {
               <Link
                 key={item.label}
                 href={item.href}
-                className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-[13px] font-semibold transition ${active
+                className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-[13px] font-semibold transition ${
+                  active
                     ? "bg-primary text-white shadow-sm"
                     : "text-[#5a3e2b] hover:bg-amber-50 hover:text-primary"
-                  }`}
+                }`}
               >
                 <Icon className="text-base" />
                 {item.label}
@@ -262,10 +258,11 @@ export default function Navbar() {
               <Link
                 key={item.label}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${active
+                className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                  active
                     ? "bg-primary text-white"
                     : "text-[#5a3e2b] hover:bg-amber-100"
-                  }`}
+                }`}
                 onClick={() => setOpen(false)}
               >
                 <Icon className="text-lg" />
