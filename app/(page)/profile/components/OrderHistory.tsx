@@ -10,6 +10,10 @@ import { addToCart, toggleSelectAll } from "@/app/store/slices/cartSlices";
 import type { AppDispatch } from "@/app/store";
 import { getOrdersByUser } from "@/apiRequest/order";
 import {
+  continueZaloPayPayment,
+  type CreateZaloPayPaymentResponse,
+} from "@/apiRequest/payment";
+import {
   createProductReview,
   getMyProductReviews,
 } from "@/apiRequest/productReview";
@@ -17,6 +21,16 @@ import OrderTabs from "./OrderTabs";
 import OrderCard from "./OrderCard";
 import type { OrderData } from "./OrderCard";
 import type { CreateProductReviewRequest } from "@/app/types/api/productReview";
+
+function getZaloPayOrderUrl(response: CreateZaloPayPaymentResponse): string {
+  return (
+    response.data?.order_url ||
+    response.data?.orderUrl ||
+    response.metadata?.order_url ||
+    response.metadata?.orderUrl ||
+    ""
+  );
+}
 
 export default function OrderHistory() {
   const router = useRouter();
@@ -31,6 +45,9 @@ export default function OrderHistory() {
     new Set(),
   );
   const [reviewSubmittingKey, setReviewSubmittingKey] = useState<string | null>(
+    null,
+  );
+  const [paymentSubmittingId, setPaymentSubmittingId] = useState<string | null>(
     null,
   );
 
@@ -146,6 +163,41 @@ export default function OrderHistory() {
     router.push("/cart");
   };
 
+  const handleContinuePayment = async (
+    orderId: string,
+    paymentOrderUrl?: string,
+  ) => {
+    if (paymentSubmittingId) return;
+
+    if (paymentOrderUrl) {
+      window.location.href = paymentOrderUrl;
+      return;
+    }
+
+    setPaymentSubmittingId(orderId);
+
+    try {
+      const response = await continueZaloPayPayment(orderId, {
+        redirectUrl: `${window.location.origin}/payment-result?orderId=${orderId}`,
+      });
+      const orderUrl = getZaloPayOrderUrl(response);
+
+      if (response.err !== 0 || !orderUrl) {
+        throw new Error(response.mess || "Không thể tạo lại link thanh toán");
+      }
+
+      window.location.href = orderUrl;
+    } catch (paymentError: unknown) {
+      toast.error(
+        paymentError instanceof Error
+          ? paymentError.message
+          : "Không thể tiếp tục thanh toán",
+      );
+    } finally {
+      setPaymentSubmittingId(null);
+    }
+  };
+
   const filteredOrders = useMemo(() => {
     if (activeTab === "all") return orders;
     return orders.filter((order) => order.status === activeTab);
@@ -254,6 +306,8 @@ export default function OrderHistory() {
               reviewSubmittingKey={reviewSubmittingKey}
               onReviewSubmit={handleReviewSubmit}
               onReorder={handleReorder}
+              onContinuePayment={handleContinuePayment}
+              paymentSubmittingId={paymentSubmittingId}
             />
           ))}
           <p className="mt-4 text-center text-xs text-stone-400">

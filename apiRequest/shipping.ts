@@ -3,8 +3,9 @@ import { post } from "./indext";
 export interface ShippingFeePayload {
   from_district_id: number;
   from_ward_code: string;
-  to_district_id: number;
-  to_ward_code: string;
+  shop_id: string;
+  to_district_id?: number;
+  to_ward_code?: string;
 }
 
 export interface ShippingFeeResponse {

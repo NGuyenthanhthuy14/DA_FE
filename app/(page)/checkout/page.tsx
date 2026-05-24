@@ -16,11 +16,8 @@ import type { AppDispatch } from "@/app/store";
 import { createOrder } from "@/apiRequest/order";
 import type { ShopOrderPayload } from "@/apiRequest/order";
 import { getAddresses } from "@/apiRequest/address";
+import { extractShippingFee, getShippingFee } from "@/apiRequest/shipping";
 import { createZaloPayPayment } from "@/apiRequest/payment";
-import {
-	createPaymentOrderId,
-	savePendingZaloPayOrder,
-} from "@/app/utils/zalopayCheckout";
 import type { UserAddress } from "@/app/types/api/address";
 import CheckoutStepper from "./components/CheckoutStepper";
 import CheckoutAddress from "./components/CheckoutAddress";
@@ -40,6 +37,7 @@ const DELIVERY_ESTIMATES = [
 	"2 – 4 ngày",
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getZaloPayOrderUrl(response: any): string {
 	return (
 		response?.data?.order_url ||
@@ -52,6 +50,7 @@ function getZaloPayOrderUrl(response: any): string {
 	);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getCreatedOrderId(response: any): string {
 	const order =
 		response?.data?.order ||
@@ -81,12 +80,11 @@ export default function CheckoutPage() {
 			.filter((g) => g.items.length > 0);
 	}, [groupedByShop]);
 
-	// State: shipping per shop
-	const [shippingMap, setShippingMap] = useState<Record<string, string>>({});
-	const getShipping = (shopId: string) => shippingMap[shopId] ?? "standard";
-	const handleShippingChange = (shopId: string, shippingId: string) => {
-		setShippingMap((prev) => ({ ...prev, [shopId]: shippingId }));
-	};
+	// State: shipping fee per shop
+	const [shippingFeeMap, setShippingFeeMap] = useState<Record<string, number>>({});
+	const [shippingLoadingMap, setShippingLoadingMap] = useState<Record<string, boolean>>({});
+	const [shippingErrorMap, setShippingErrorMap] = useState<Record<string, string>>({});
+	const getShippingFeeValue = (shopId: string) => shippingFeeMap[shopId] ?? 0;
 
 	// State: notes per shop
 	const [noteMap, setNoteMap] = useState<Record<string, string>>({});
@@ -171,7 +169,94 @@ export default function CheckoutPage() {
 				wardCode: undefined,
 				detail: "101 Cầu Giấy, Phường Quan Hoa, Quận Cầu Giấy, Hà Nội",
 				isDefault: true,
-			};
+			}
+
+	const checkoutShopKey = checkoutGroups.map((group) => group.shopId).join("|");
+	const shippingAddressReady = Boolean(
+		displayAddress.districtId && displayAddress.wardCode,
+	);
+
+	useEffect(() => {
+		const checkoutShopIds = checkoutShopKey.split("|").filter(Boolean);
+		if (checkoutShopIds.length === 0) return;
+
+		if (!displayAddress.districtId || !displayAddress.wardCode) {
+			setShippingFeeMap({});
+			setShippingLoadingMap({});
+			setShippingErrorMap(
+				Object.fromEntries(
+					checkoutShopIds.map((shopId) => [
+						shopId,
+						"Cần chọn địa chỉ có quận/huyện và phường/xã",
+					]),
+				),
+			);
+			return;
+		}
+
+		let ignore = false;
+		const shopIds = checkoutShopIds;
+
+		setShippingLoadingMap(
+			Object.fromEntries(shopIds.map((shopId) => [shopId, true])),
+		);
+		setShippingErrorMap({});
+
+		async function fetchShippingFees() {
+			const results = await Promise.all(
+				shopIds.map(async (shopId) => {
+					try {
+						const response = await getShippingFee({
+							from_district_id: displayAddress.districtId!,
+							from_ward_code: displayAddress.wardCode!,
+							to_district_id: displayAddress.districtId,
+							to_ward_code: displayAddress.wardCode,
+							shop_id: shopId,
+						});
+						const fee = extractShippingFee(response);
+
+						if (fee === null) {
+							return {
+								shopId,
+								fee: 0,
+								error: response.mess || "Chưa tính được phí",
+							};
+						}
+
+						return { shopId, fee, error: "" };
+					} catch (error: unknown) {
+						return {
+							shopId,
+							fee: 0,
+							error: error instanceof Error ? error.message : "Không tính được phí",
+						};
+					}
+				}),
+			);
+
+			if (ignore) return;
+
+			setShippingFeeMap(
+				Object.fromEntries(results.map((result) => [result.shopId, result.fee])),
+			);
+			setShippingErrorMap(
+				Object.fromEntries(
+					results
+						.filter((result) => result.error)
+						.map((result) => [result.shopId, result.error]),
+				),
+			);
+			setShippingLoadingMap(
+				Object.fromEntries(shopIds.map((shopId) => [shopId, false])),
+			);
+		}
+
+		fetchShippingFees();
+
+		return () => {
+			ignore = true;
+		};
+	}, [checkoutShopKey, displayAddress.districtId, displayAddress.wardCode]);
 
 	const handleSaveAddress = (data: AddressData) => {
 		// Tự ghép trường address hiển thị từ detail + ward + district + city
@@ -194,10 +279,7 @@ export default function CheckoutPage() {
 	);
 
 	const shippingTotal = checkoutGroups.reduce((sum, group) => {
-		const shippingId = getShipping(group.shopId);
-		const opt =
-			SHIPPING_OPTIONS.find((o) => o.id === shippingId) ?? SHIPPING_OPTIONS[0];
-		return sum + opt.price;
+		return sum + getShippingFeeValue(group.shopId);
 	}, 0);
 
 	const total = subtotal + shippingTotal;
@@ -210,12 +292,25 @@ export default function CheckoutPage() {
 			return;
 		}
 
+		if (!shippingAddressReady) {
+			toast.error("Vui lòng chọn địa chỉ có quận/huyện và phường/xã");
+			return;
+		}
+		if (Object.values(shippingLoadingMap).some(Boolean)) {
+			toast.info("Đang tính phí vận chuyển, vui lòng chờ");
+			return;
+		}
+		if (checkoutGroups.some((group) => shippingErrorMap[group.shopId])) {
+			toast.error("Chưa thể tính phí vận chuyển cho đơn hàng");
+			return;
+		}
+
 		setPlacing(true);
 		try {
 			// Xây dựng hoá đơn từng shop
 			const shopOrdersPayload: ShopOrderPayload[] = checkoutGroups.map((group) => {
-				const shippingId = getShipping(group.shopId);
-				const shippingOpt = SHIPPING_OPTIONS.find((o) => o.id === shippingId) ?? SHIPPING_OPTIONS[0];
+				const shippingOpt = SHIPPING_OPTIONS[0];
+				const shippingPrice = getShippingFeeValue(group.shopId);
 
 				const items = group.items.map((item) => {
 					const salePrice = calcSalePrice(item.price, item.discount);
@@ -237,9 +332,9 @@ export default function CheckoutPage() {
 					items,
 					shippingMethod: shippingOpt.id,
 					shippingLabel: shippingOpt.label,
-					shippingPrice: shippingOpt.price,
+					shippingPrice,
 					productTotal,
-					shopTotal: productTotal + shippingOpt.price,
+					shopTotal: productTotal + shippingPrice,
 					note: noteMap[group.shopId] ?? "",
 				};
 			});
@@ -263,15 +358,30 @@ export default function CheckoutPage() {
 				subtotal,
 				shippingTotal,
 				totalPrice: total,
-			};
+			}
 
 			if (paymentMethod === "online" || paymentMethod === "ewallet") {
-				const paymentOrderId = createPaymentOrderId();
-				const redirectUrl = `${window.location.origin}/payment-result?checkoutOrderId=${paymentOrderId}`;
+				const orderResponse = await createOrder({
+					...payload,
+					paymentMethod: "online",
+				});
+
+				if (orderResponse.err !== 0) {
+					toast.error(orderResponse.mess || "Đặt hàng thất bại");
+					return;
+				}
+
+				const orderId = getCreatedOrderId(orderResponse);
+
+				if (!orderId) {
+					toast.error("Không tìm thấy mã đơn hàng để thanh toán ZaloPay");
+					return;
+				}
+
 				const paymentResponse = await createZaloPayPayment({
-					orderId: paymentOrderId,
+					orderId,
 					bankCode: "",
-					redirectUrl,
+					redirectUrl: `${window.location.origin}/payment-result?orderId=${orderId}`,
 				});
 
 				const orderUrl = getZaloPayOrderUrl(paymentResponse);
@@ -283,52 +393,19 @@ export default function CheckoutPage() {
 					return;
 				}
 
-				savePendingZaloPayOrder({
-					paymentOrderId,
-					orderPayload: {
-						...payload,
-						paymentMethod: "online",
-					},
-				});
-
 				window.location.href = orderUrl;
 				return;
 			}
 
+
 			const response = await createOrder(payload);
 
 			if (response.err === 0) {
-				if (paymentMethod === "online" || paymentMethod === "ewallet") {
-					const orderId = getCreatedOrderId(response);
-
-					if (!orderId) {
-						toast.error("Không tìm thấy mã đơn hàng để thanh toán ZaloPay");
-						return;
-					}
-
-					const paymentResponse = await createZaloPayPayment({
-						orderId,
-						bankCode: "",
-						redirectUrl: `${window.location.origin}/payment-result`,
-					});
-
-					const orderUrl = getZaloPayOrderUrl(paymentResponse);
-
-					if (paymentResponse.err !== 0 || !orderUrl) {
-						toast.error(
-							paymentResponse.mess || "Không thể tạo thanh toán ZaloPay",
-						);
-						return;
-					}
-
-					window.location.href = orderUrl;
-					return;
-				}
-
 				setShowSuccess(true);
 			} else {
 				toast.error(response.mess || "Đặt hàng thất bại");
 			}
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} catch (error: any) {
 			console.error("Place order error:", error);
 			toast.error(error?.message || "Có lỗi xảy ra khi đặt hàng");
@@ -350,6 +427,8 @@ export default function CheckoutPage() {
 	};
 
 	// ── Empty checkout guard ──
+	const isShippingCalculating = Object.values(shippingLoadingMap).some(Boolean);
+
 	if (selectedItems.length === 0) {
 		return (
 			<div className="mx-auto flex max-w-7xl flex-col items-center justify-center px-4 py-20">
@@ -424,8 +503,9 @@ export default function CheckoutPage() {
 							estimatedDays={
 								DELIVERY_ESTIMATES[idx % DELIVERY_ESTIMATES.length]
 							}
-							selectedShipping={getShipping(group.shopId)}
-							onShippingChange={handleShippingChange}
+							shippingFee={getShippingFeeValue(group.shopId)}
+							shippingLoading={shippingLoadingMap[group.shopId]}
+							shippingError={shippingErrorMap[group.shopId]}
 							note={noteMap[group.shopId] ?? ""}
 							onNoteChange={handleNoteChange}
 						/>
@@ -450,10 +530,10 @@ export default function CheckoutPage() {
 
 					{/* Place Order Button */}
 					<button
-						className={`w-full cursor-pointer rounded-xl border-none bg-gradient-to-br from-orange-600 to-orange-500 px-5 py-4 font-inherit text-base font-bold text-white shadow-lg shadow-orange-600/30 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-600/40 active:translate-y-0 ${placing ? 'opacity-60 pointer-events-none' : ''}`}
+						className={`w-full cursor-pointer rounded-xl border-none bg-gradient-to-br from-orange-600 to-orange-500 px-5 py-4 font-inherit text-base font-bold text-white shadow-lg shadow-orange-600/30 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-600/40 active:translate-y-0 ${placing || isShippingCalculating ? 'opacity-60 pointer-events-none' : ''}`}
 						type="button"
 						onClick={handlePlaceOrder}
-						disabled={placing}
+						disabled={placing || isShippingCalculating}
 					>
 						{placing ? '⏳ Đang xử lý...' : '🛒 Đặt hàng'}
 					</button>

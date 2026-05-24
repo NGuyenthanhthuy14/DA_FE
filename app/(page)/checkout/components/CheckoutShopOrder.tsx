@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { LuTruck, LuZap, LuMessageSquare } from "react-icons/lu";
+import React from "react";
+import { LuMessageSquare, LuTruck } from "react-icons/lu";
 import type { CartItem } from "@/app/store/slices/cartSlices";
 import { calcSalePrice } from "@/app/store/slices/cartSlices";
 
@@ -17,21 +17,12 @@ function fmtPrice(value: number) {
   return value.toLocaleString("vi-VN") + "đ";
 }
 
-// Shipping options
 const SHIPPING_OPTIONS = [
   {
     id: "standard",
     label: "Giao hàng tiêu chuẩn",
-    time: "2 – 4 ngày",
-    price: 30000,
+    time: "Theo đơn vị vận chuyển",
     icon: <LuTruck />,
-  },
-  {
-    id: "express",
-    label: "Giao hàng nhanh",
-    time: "1 – 2 ngày",
-    price: 50000,
-    icon: <LuZap />,
   },
 ];
 
@@ -40,8 +31,9 @@ interface CheckoutShopOrderProps {
   shopName: string;
   items: CartItem[];
   estimatedDays: string;
-  selectedShipping: string;
-  onShippingChange: (shopId: string, shippingId: string) => void;
+  shippingFee: number;
+  shippingLoading?: boolean;
+  shippingError?: string;
   note: string;
   onNoteChange: (shopId: string, note: string) => void;
 }
@@ -51,14 +43,13 @@ export default function CheckoutShopOrder({
   shopName,
   items,
   estimatedDays,
-  selectedShipping,
-  onShippingChange,
+  shippingFee,
+  shippingLoading = false,
+  shippingError,
   note,
   onNoteChange,
 }: CheckoutShopOrderProps) {
-  const shippingOption =
-    SHIPPING_OPTIONS.find((o) => o.id === selectedShipping) ??
-    SHIPPING_OPTIONS[0];
+  const shippingOption = SHIPPING_OPTIONS[0];
 
   const productTotal = items.reduce(
     (sum, item) =>
@@ -66,11 +57,10 @@ export default function CheckoutShopOrder({
     0
   );
 
-  const shopTotal = productTotal + shippingOption.price;
+  const shopTotal = productTotal + shippingFee;
 
   return (
     <div className="mb-4 overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm">
-      {/* Shop Header */}
       <div className="flex items-center justify-between border-b border-amber-100 bg-amber-50/40 px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-600 text-xs text-white">
@@ -84,7 +74,6 @@ export default function CheckoutShopOrder({
       </div>
 
       <div className="flex flex-col lg:flex-row">
-        {/* Product list */}
         <div className="flex-1 border-r border-amber-100/50">
           {items.map((item) => {
             const salePrice = calcSalePrice(item.price, item.discount);
@@ -118,7 +107,6 @@ export default function CheckoutShopOrder({
             );
           })}
 
-          {/* Note input */}
           <div className="flex items-center gap-2 border-t border-amber-50 px-4 py-2.5">
             <LuMessageSquare className="shrink-0 text-sm text-stone-400" />
             <input
@@ -131,47 +119,42 @@ export default function CheckoutShopOrder({
           </div>
         </div>
 
-        {/* Shipping method + total */}
         <div className="w-full border-t border-amber-100/50 lg:w-[220px] lg:border-t-0">
           <div className="px-4 py-3">
             <p className="m-0 mb-2 text-xs font-semibold text-stone-600">
               Phương thức vận chuyển
             </p>
             <div className="flex flex-col gap-2">
-              {SHIPPING_OPTIONS.map((opt) => (
-                <label
-                  key={opt.id}
-                  className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 transition-all ${
-                    selectedShipping === opt.id
-                      ? "border-orange-400 bg-orange-50/60"
-                      : "border-stone-200 hover:border-orange-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name={`shipping-${shopId}`}
-                    value={opt.id}
-                    checked={selectedShipping === opt.id}
-                    onChange={() => onShippingChange(shopId, opt.id)}
-                    className="mt-0.5 accent-orange-600"
-                  />
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-orange-600">{opt.icon}</span>
-                    <div>
-                      <p className="m-0 text-xs font-medium text-stone-700">
-                        {opt.label}
-                      </p>
-                      <p className="m-0 text-[11px] text-stone-400">
-                        {opt.time} · {fmtPrice(opt.price)}
-                      </p>
-                    </div>
+              <div className="flex items-start gap-2 rounded-lg border border-orange-400 bg-orange-50/60 px-3 py-2">
+                <input
+                  type="radio"
+                  name={`shipping-${shopId}`}
+                  value={shippingOption.id}
+                  checked
+                  readOnly
+                  className="mt-0.5 accent-orange-600"
+                />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm text-orange-600">
+                    {shippingOption.icon}
+                  </span>
+                  <div>
+                    <p className="m-0 text-xs font-medium text-stone-700">
+                      {shippingOption.label}
+                    </p>
+                    <p className="m-0 text-[11px] text-stone-400">
+                      {shippingLoading
+                        ? "Đang tính phí..."
+                        : shippingError
+                          ? shippingError
+                          : `${shippingOption.time} - ${fmtPrice(shippingFee)}`}
+                    </p>
                   </div>
-                </label>
-              ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Shop Total */}
           <div className="flex items-center justify-between border-t border-amber-100 px-4 py-3">
             <span className="text-xs text-stone-500">Tổng shop</span>
             <span className="text-[15px] font-bold text-orange-600">

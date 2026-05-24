@@ -45,6 +45,13 @@ export interface OrderData {
   };
   shopOrders: ShopOrderData[];
   paymentMethod: string;
+  paymentProvider?: string;
+  paymentStatus?: "pending" | "paid" | "failed" | "cancelled" | string;
+  paymentTransactionId?: string;
+  paymentOrderUrl?: string;
+  paymentOrderToken?: string;
+  paymentQrCode?: string;
+  zaloPayTransId?: string;
   subtotal: number;
   shippingTotal: number;
   totalPrice: number;
@@ -108,6 +115,8 @@ function getProductId(product: OrderItemData["product"]) {
 interface OrderCardProps {
   order: OrderData;
   onReorder?: (orderId: string) => void;
+  onContinuePayment?: (orderId: string, paymentOrderUrl?: string) => void;
+  paymentSubmittingId?: string | null;
   reviewedProductKeys?: Set<string>;
   reviewSubmittingKey?: string | null;
   onReviewSubmit?: (payload: {
@@ -121,6 +130,8 @@ interface OrderCardProps {
 export default function OrderCard({
   order,
   onReorder,
+  onContinuePayment,
+  paymentSubmittingId,
   reviewedProductKeys,
   reviewSubmittingKey,
   onReviewSubmit,
@@ -131,6 +142,23 @@ export default function OrderCard({
   const statusInfo = STATUS_MAP[order.status] ?? STATUS_MAP.pending;
   const isDelivered = order.status === "delivered" || order.isDelivered;
   const canReorder = order.status === "delivered" || order.status === "cancelled";
+  const isOnlinePaymentMethod = ["online", "ewallet"].includes(order.paymentMethod);
+  const isZaloPayPayment = order.paymentProvider === "zalopay";
+  const hasPendingPaymentStatus =
+    order.paymentStatus === "pending" || order.paymentStatus === undefined;
+  const isAwaitingOnlinePayment =
+    (isOnlinePaymentMethod || isZaloPayPayment) &&
+    hasPendingPaymentStatus &&
+    !order.isPaid &&
+    order.status === "pending";
+  const displayStatusInfo = isAwaitingOnlinePayment
+    ? {
+        headline: "Đơn hàng đang chờ thanh toán",
+        label: "CHỜ THANH TOÁN",
+        tone: "text-amber-600",
+      }
+    : statusInfo;
+  const isContinuingPayment = paymentSubmittingId === order._id;
 
   const openReviewModal = (item: OrderItemData) => {
     setReviewTarget(item);
@@ -188,18 +216,18 @@ export default function OrderCard({
 
               <div className="flex flex-wrap items-center justify-end gap-2 text-xs sm:gap-3">
                 <span
-                  className={`inline-flex items-center gap-1.5 ${statusInfo.tone}`}
+                  className={`inline-flex items-center gap-1.5 ${displayStatusInfo.tone}`}
                 >
                   {isDelivered ? (
                     <LuTruck className="text-base" />
                   ) : (
                     <LuShoppingBag className="text-base" />
                   )}
-                  {statusInfo.headline}
+                  {displayStatusInfo.headline}
                 </span>
                 <span className="h-4 w-px bg-stone-200" />
                 <span className="font-medium uppercase text-orange-600">
-                  {statusInfo.label}
+                  {displayStatusInfo.label}
                 </span>
               </div>
             </div>
@@ -260,7 +288,26 @@ export default function OrderCard({
                   Mã đơn: #{order._id.slice(-8).toUpperCase()}
                 </div>
 
+                {isAwaitingOnlinePayment && (
+                  <div className="text-xs font-medium text-amber-600">
+                    Đơn hàng đang chờ thanh toán.
+                  </div>
+                )}
+
                 <div className="flex flex-wrap justify-end gap-2">
+                  {isAwaitingOnlinePayment && onContinuePayment && (
+                    <button
+                      type="button"
+                      onClick={() => onContinuePayment(order._id, order.paymentOrderUrl)}
+                      disabled={isContinuingPayment}
+                      className="min-w-28 cursor-pointer border border-orange-600 bg-orange-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isContinuingPayment
+                        ? "Đang tạo link..."
+                        : "Tiếp tục thanh toán"}
+                    </button>
+                  )}
+
                   {isDelivered && onReviewSubmit && (
                     <button
                       type="button"

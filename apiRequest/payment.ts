@@ -29,3 +29,13 @@ export const createZaloPayPayment = async (
     ...payload,
   });
 };
+
+export const continueZaloPayPayment = async (
+  orderId: string,
+  payload?: Pick<CreateZaloPayPaymentPayload, "bankCode" | "redirectUrl">,
+): Promise<CreateZaloPayPaymentResponse> => {
+  return await post(`/payments/zalopay/continue/${orderId}`, {
+    bankCode: "",
+    ...payload,
+  });
+};

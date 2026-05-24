@@ -39,7 +39,7 @@ export interface OrderItem {
   itemTotal: number;
 }
 
-export type PaymentMethod = "cod" | "online";
+export type PaymentMethod = "cod" | "online" | "ewallet";
 
 export type ShippingMethod = "standard" | "express";
 
@@ -55,6 +55,13 @@ export interface Order {
   shippingAddress: ShippingAddress;
   shopOrders: ShopOrder[];
   paymentMethod: PaymentMethod;
+  paymentProvider?: string;
+  paymentStatus?: "pending" | "paid" | "failed" | "cancelled" | string;
+  paymentTransactionId?: string;
+  paymentOrderUrl?: string;
+  paymentOrderToken?: string;
+  paymentQrCode?: string;
+  zaloPayTransId?: string;
   subtotal: number;
   shippingTotal: number;
   totalPrice: number;
