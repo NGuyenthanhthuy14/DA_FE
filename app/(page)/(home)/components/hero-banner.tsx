@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useShopsWithSpecialties } from "@/app/services/useShopsWithSpecialties";
-import CategoryPanel from "./category-panel";
+import SpecialtyPanel from "./specialty-panel";
 import MapPanel from "./map-panel";
 import { MapFocusTarget } from "@/app/types/mapFocus";
 
@@ -39,7 +39,7 @@ export default function HeroBanner({
             address={address}
             focusedMarker={focusedMarker}
           />
-          <CategoryPanel
+          <SpecialtyPanel
             shopSpecialtiesData={shopSpecialtiesData}
             loading={loading}
             onFocusMarker={setFocusedMarker}

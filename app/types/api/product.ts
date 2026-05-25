@@ -27,7 +27,6 @@ export interface Product {
   _id: string;
   id?: string;
   shop_id?: string;
-  category_id?: string;
   specialty_id?: string;
   name: string;
   slug?: string;
@@ -74,6 +73,7 @@ export interface NearbyProduct {
   name: string;
   image: string;
   type: string;
+  specialty_id?: string;
   price: number;
   rating: number;
   description: string;

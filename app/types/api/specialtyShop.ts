@@ -4,8 +4,17 @@ export interface Specialty {
   slug: string;
   description: string;
   image_url: string;
-  category_id: string;
-  is_featured: boolean;
+  approval_status?: "pending" | "approved" | "rejected";
+  status?: "active" | "inactive";
+  rejected_reason?: string;
+  created_by?: string | null;
+  created_by_role?: "vendor" | "admin" | null;
+  shop_id?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  is_featured?: boolean;
 }
 
 export interface Shop {

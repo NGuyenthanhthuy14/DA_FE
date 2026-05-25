@@ -87,10 +87,6 @@ async function fetchJSON(url: string): Promise<{
   }
 }
 
-function toArrayOrEmpty(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
-
 export async function GET(request: NextRequest) {
   try {
     const apiUrl = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL;
@@ -115,7 +111,6 @@ export async function GET(request: NextRequest) {
 
     let shops: unknown[] = [];
     let specialties: unknown[] = [];
-    let categories: unknown[] = [];
     let areaName: string | null = null;
 
     const overviewQuery = `lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`;
@@ -133,7 +128,6 @@ export async function GET(request: NextRequest) {
         "foods",
         "featuredFoods",
       ]);
-      categories = extractArrayFromPayload(overview.payload, ["categories"]);
       areaName = extractAreaName(overview.payload);
     }
 
@@ -155,7 +149,7 @@ export async function GET(request: NextRequest) {
       const specialtyEndpoints = [
         `${apiUrl}/foods/specialties/nearby?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`,
         `${apiUrl}/home/specialties?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`,
-        `${apiUrl}/home/categories`,
+        `${apiUrl}/specialties`,
       ];
 
       for (const endpoint of specialtyEndpoints) {
@@ -167,7 +161,6 @@ export async function GET(request: NextRequest) {
           "regionalSpecialties",
           "foods",
           "featuredFoods",
-          "categories",
         ]);
 
         if (list.length > 0) {
@@ -178,10 +171,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (categories.length === 0) {
-      categories = toArrayOrEmpty(specialties);
-    }
-
     return NextResponse.json(
       {
         lat,
@@ -189,7 +178,6 @@ export async function GET(request: NextRequest) {
         areaName,
         shops,
         specialties,
-        categories,
       },
       { status: 200 }
     );

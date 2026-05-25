@@ -2,22 +2,18 @@
 
 import { BiChevronDown, BiCurrentLocation } from "react-icons/bi";
 
-/* ── Types ── */
-
 export type DistanceRange = "all" | "5km" | "10km" | "15km" | "20km";
 
 export interface SidebarFilterProps {
-  types: string[];
-  activeType: string;
-  onTypeChange: (type: string) => void;
+  specialties: { id: string; name: string }[];
+  activeSpecialtyId: string;
+  onSpecialtyChange: (specialtyId: string) => void;
   distanceRange: DistanceRange;
   onDistanceRangeChange: (range: DistanceRange) => void;
   sortBy: string;
   onSortChange: (sort: string) => void;
   hasLocation: boolean;
 }
-
-/* ── Constants ── */
 
 const DISTANCE_RANGES: { value: DistanceRange; label: string }[] = [
   { value: "5km", label: "Trong 5 km" },
@@ -35,12 +31,10 @@ const SORT_OPTIONS = [
   { value: "nearest", label: "Gần nhất" },
 ];
 
-/* ── Component ── */
-
 export default function SidebarFilter({
-  types,
-  activeType,
-  onTypeChange,
+  specialties,
+  activeSpecialtyId,
+  onSpecialtyChange,
   distanceRange,
   onDistanceRangeChange,
   sortBy,
@@ -49,17 +43,16 @@ export default function SidebarFilter({
 }: SidebarFilterProps) {
   return (
     <aside className="w-full">
-      {/* ─── Danh mục sản phẩm ─── */}
       <div>
-        <h3 className="text-[15px] font-bold text-gray-900">Danh mục sản phẩm</h3>
+        <h3 className="text-[15px] font-bold text-gray-900">Đặc sản</h3>
 
         <ul className="mt-3 space-y-0.5">
           <li>
             <button
               type="button"
-              onClick={() => onTypeChange("all")}
+              onClick={() => onSpecialtyChange("all")}
               className={`w-full py-2 text-left text-[13px] transition ${
-                activeType === "all"
+                activeSpecialtyId === "all"
                   ? "border-l-[3px] border-amber-700 pl-3 font-bold text-gray-900"
                   : "pl-[15px] text-gray-600 hover:text-gray-900"
               }`}
@@ -67,25 +60,24 @@ export default function SidebarFilter({
               Tất cả sản phẩm
             </button>
           </li>
-          {types.map((t) => (
-            <li key={t}>
+          {specialties.map((specialty) => (
+            <li key={specialty.id}>
               <button
                 type="button"
-                onClick={() => onTypeChange(t)}
+                onClick={() => onSpecialtyChange(specialty.id)}
                 className={`w-full py-2 text-left text-[13px] transition ${
-                  activeType === t
+                  activeSpecialtyId === specialty.id
                     ? "border-l-[3px] border-amber-700 pl-3 font-bold text-gray-900"
                     : "pl-[15px] text-gray-600 hover:text-gray-900"
                 }`}
               >
-                {t}
+                {specialty.name}
               </button>
             </li>
           ))}
         </ul>
       </div>
 
-      {/* ─── Khoảng cách ─── */}
       <div className="mt-7">
         <h3 className="text-[15px] font-bold text-gray-900">Khoảng cách</h3>
 
@@ -113,7 +105,7 @@ export default function SidebarFilter({
               className={`flex cursor-pointer items-center gap-2.5 text-[13px] transition ${
                 hasLocation
                   ? "text-gray-600 hover:text-gray-900"
-                  : "text-gray-400 cursor-not-allowed"
+                  : "cursor-not-allowed text-gray-400"
               }`}
             >
               <input
@@ -130,7 +122,6 @@ export default function SidebarFilter({
         </div>
       </div>
 
-      {/* ─── Sắp xếp ─── */}
       <div className="mt-7">
         <h3 className="text-[15px] font-bold text-gray-900">Sắp xếp</h3>
 

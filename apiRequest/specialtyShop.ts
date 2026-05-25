@@ -1,11 +1,6 @@
 
 import { GetShopsWithSpecialtiesResponse } from "@/app/types/api/specialtyShop";
-import { post, get } from "./indext";
-
-type Params = {
-  lat: number;
-  lng: number;
-};
+import { get } from "./indext";
 
 export const getShopsWithSpecialties = async (
   params?: { lat?: number; lng?: number }

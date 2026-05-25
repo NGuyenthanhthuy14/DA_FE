@@ -11,7 +11,7 @@ export interface SpecialtyProduct {
   discount: number;
   sold: number;
   countInStock: number;
-  category_id: string;
+  specialty_id?: string;
   shop: {
     _id: string;
     name: string;
@@ -29,7 +29,16 @@ export interface SpecialtyDetail {
   slug: string;
   description: string;
   image_url: string;
-  category_id: string;
+  approval_status: "pending" | "approved" | "rejected";
+  status: "active" | "inactive";
+  rejected_reason?: string;
+  created_by?: string | null;
+  created_by_role?: "vendor" | "admin" | null;
+  shop_id?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
   products: SpecialtyProduct[];
   totalProducts: number;
 }
@@ -47,7 +56,16 @@ export interface SpecialtyCatalogItem {
   slug: string;
   description: string;
   image_url: string;
-  category_id: string;
+  approval_status?: "pending" | "approved" | "rejected";
+  status?: "active" | "inactive";
+  rejected_reason?: string;
+  created_by?: string | null;
+  created_by_role?: "vendor" | "admin" | null;
+  shop_id?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface SpecialtyCatalogResponse {

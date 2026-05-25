@@ -1,22 +1,22 @@
 import React from "react";
 
-export interface CategoryCardItem {
+export interface FilterPillItem {
   id: string;
   label: string;
   emoji: string;
 }
 
-interface CategoryCardProps {
-  cat: CategoryCardItem;
+interface SpecialtyFilterCardProps {
+  cat: FilterPillItem;
   active?: boolean;
   onClick?: () => void;
 }
 
-export default function CategoryCard({
+export default function SpecialtyFilterCard({
   cat,
   active = false,
   onClick,
-}: CategoryCardProps) {
+}: SpecialtyFilterCardProps) {
   return (
     <button
       type="button"

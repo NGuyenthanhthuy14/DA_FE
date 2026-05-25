@@ -15,6 +15,7 @@ import { useProduct } from "@/app/services/useProduct";
 import { useShopAPI } from "@/app/services/useShop";
 import { getProductDistance } from "@/app/utils/distance";
 import { getNearbyProducts } from "@/apiRequest/product";
+import { getAllSpecialties, type SpecialtyCatalogItem } from "@/apiRequest/specialty";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -87,12 +88,13 @@ function ProductSkeleton() {
 }
 
 export default function ProductPage() {
-  const [activeType, setActiveType] = useState("all");
+  const [activeSpecialtyId, setActiveSpecialtyId] = useState("all");
   const [distanceRange, setDistanceRange] = useState<DistanceRange>("all");
   const [sortBy, setSortBy] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const [showSort, setShowSort] = useState(false);
   const [nearbyProducts, setNearbyProducts] = useState<NearbyProduct[]>([]);
+  const [specialties, setSpecialties] = useState<SpecialtyCatalogItem[]>([]);
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
   const nearbyRequestRef = useRef(0);
@@ -106,10 +108,15 @@ export default function ProductPage() {
   const allProducts = product?.data ?? EMPTY_PRODUCTS;
   const allShops = shop?.metadata ?? EMPTY_SHOPS;
   const loading = product === null || nearbyLoading;
-  const productTypes = useMemo(
-    () => [...new Set(allProducts.map((p) => p.type).filter(Boolean))] as string[],
-    [allProducts]
-  );
+  const specialtyOptions = useMemo(() => {
+    const productSpecialtyIds = new Set(
+      allProducts.map((p) => p.specialty_id).filter((id): id is string => Boolean(id)),
+    );
+
+    return specialties
+      .filter((specialty) => productSpecialtyIds.has(specialty._id))
+      .map((specialty) => ({ id: specialty._id, name: specialty.name }));
+  }, [allProducts, specialties]);
 
   // Build shopMap: shopId → Shop
   const shopMap = useMemo(
@@ -162,6 +169,12 @@ export default function ProductPage() {
     );
   }, []);
 
+  useEffect(() => {
+    getAllSpecialties()
+      .then((res) => setSpecialties(res.metadata || []))
+      .catch((error) => console.error("Error fetching specialties:", error));
+  }, []);
+
   // Close sort dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -212,15 +225,14 @@ export default function ProductPage() {
   const sourceProducts: ProductListItem[] =
     distanceRange === "all" ? allProducts : nearbyProducts;
 
-  // Filter by type
-  const filteredByType = useMemo(() => {
-    if (activeType === "all") return sourceProducts;
-    return sourceProducts.filter((p) => p.type === activeType);
-  }, [sourceProducts, activeType]);
+  const filteredBySpecialty = useMemo(() => {
+    if (activeSpecialtyId === "all") return sourceProducts;
+    return sourceProducts.filter((p) => p.specialty_id === activeSpecialtyId);
+  }, [sourceProducts, activeSpecialtyId]);
 
   // Sort
   const sortedProducts = useMemo(() => {
-    const list = [...filteredByType];
+    const list = [...filteredBySpecialty];
     switch (sortBy) {
       case "bestSelling":
         return list.sort((a, b) => (b.sold ?? 0) - (a.sold ?? 0));
@@ -248,7 +260,7 @@ export default function ProductPage() {
       default:
         return list.reverse();
     }
-  }, [filteredByType, sortBy, shopDistanceMap]);
+  }, [filteredBySpecialty, sortBy, shopDistanceMap]);
 
   // Paginate
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE));
@@ -260,11 +272,11 @@ export default function ProductPage() {
   // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeType, distanceRange, sortBy]);
+  }, [activeSpecialtyId, distanceRange, sortBy]);
 
   const resetFilters = () => {
     nearbyRequestRef.current += 1;
-    setActiveType("all");
+    setActiveSpecialtyId("all");
     setDistanceRange("all");
     setNearbyProducts([]);
     setNearbyLoading(false);
@@ -272,7 +284,13 @@ export default function ProductPage() {
   };
 
   const hasLocation = userLat !== null && userLng !== null;
-  const activeLabel = activeType === "all" ? "Tất cả sản phẩm" : activeType;
+  const activeSpecialty = specialtyOptions.find(
+    (item) => item.id === activeSpecialtyId,
+  );
+  const activeLabel =
+    activeSpecialtyId === "all"
+      ? "Tất cả sản phẩm"
+      : activeSpecialty?.name ?? "Đặc sản";
   const activeSortLabel = SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? "Mới nhất";
 
   const getDistance = (p: ProductListItem) => {
@@ -300,9 +318,9 @@ export default function ProductPage() {
         <div className="flex gap-10">
           <div className="hidden w-52 shrink-0 lg:block">
             <SidebarFilter
-              types={productTypes}
-              activeType={activeType}
-              onTypeChange={setActiveType}
+              specialties={specialtyOptions}
+              activeSpecialtyId={activeSpecialtyId}
+              onSpecialtyChange={setActiveSpecialtyId}
               distanceRange={distanceRange}
               onDistanceRangeChange={handleDistanceRangeChange}
               sortBy={sortBy}

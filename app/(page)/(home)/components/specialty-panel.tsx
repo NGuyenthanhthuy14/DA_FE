@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Shop } from "@/app/types/api/specialtyShop";
 import { MapFocusTarget } from "@/app/types/mapFocus";
 
-interface CategoryPanelProps {
+interface SpecialtyPanelProps {
   shopSpecialtiesData: Shop[] | undefined;
   loading?: boolean;
   onFocusMarker?: (target: MapFocusTarget) => void;
@@ -106,11 +106,11 @@ const buildSpecialtySummaries = (
   );
 };
 
-export default function CategoryPanel({
+export default function SpecialtyPanel({
   shopSpecialtiesData,
   loading = false,
   onFocusMarker,
-}: CategoryPanelProps) {
+}: SpecialtyPanelProps) {
   const specialtiesOnly = buildSpecialtySummaries(shopSpecialtiesData);
   const shouldScroll = specialtiesOnly.length > 5;
   const [selectedSpecialtyKey, setSelectedSpecialtyKey] = useState<

@@ -75,7 +75,16 @@ const normalizeCatalogSpecialty = (
     slug,
     description: toPlainString(item.description),
     image_url: toPlainString(item.image_url),
-    category_id: toPlainString(item.category_id),
+    approval_status: item.approval_status,
+    status: item.status,
+    rejected_reason: toPlainString(item.rejected_reason),
+    created_by: toPlainString(item.created_by) || null,
+    created_by_role: item.created_by_role ?? null,
+    shop_id: toPlainString(item.shop_id) || null,
+    reviewed_by: toPlainString(item.reviewed_by) || null,
+    reviewed_at: toPlainString(item.reviewed_at),
+    created_at: toPlainString(item.created_at),
+    updated_at: toPlainString(item.updated_at),
     is_featured: false,
   };
 };
