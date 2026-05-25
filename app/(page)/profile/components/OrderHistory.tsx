@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { selectUser } from "@/app/store/slices/userSlices";
 import { addToCart, toggleSelectAll } from "@/app/store/slices/cartSlices";
 import type { AppDispatch } from "@/app/store";
-import { getOrdersByUser } from "@/apiRequest/order";
+import { getOrderDetail, getOrdersByUser } from "@/apiRequest/order";
 import {
   continueZaloPayPayment,
   type CreateZaloPayPaymentResponse,
@@ -20,6 +20,7 @@ import {
 import OrderTabs from "./OrderTabs";
 import OrderCard from "./OrderCard";
 import type { OrderData } from "./OrderCard";
+import OrderDetailModal from "./OrderDetailModal";
 import type { CreateProductReviewRequest } from "@/app/types/api/productReview";
 
 function getZaloPayOrderUrl(response: CreateZaloPayPaymentResponse): string {
@@ -50,6 +51,10 @@ export default function OrderHistory() {
   const [paymentSubmittingId, setPaymentSubmittingId] = useState<string | null>(
     null,
   );
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailOrder, setDetailOrder] = useState<OrderData | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     if (!userId) {
@@ -198,6 +203,44 @@ export default function OrderHistory() {
     }
   };
 
+  const handleViewDetail = async (order: OrderData) => {
+    setDetailOpen(true);
+    setDetailOrder(order);
+    setDetailError(null);
+    setDetailLoading(true);
+
+    try {
+      const response = await getOrderDetail(order._id);
+      const orderDetail =
+        response.data?.order ||
+        response.data?.data ||
+        response.data?.metadata ||
+        response.data;
+
+      if (response.err !== 0 || !orderDetail) {
+        throw new Error(response.mess || "KhÃ´ng thá»ƒ táº£i chi tiáº¿t Ä‘Æ¡n hÃ ng");
+      }
+
+      setDetailOrder(orderDetail);
+    } catch (detailError: unknown) {
+      const message =
+        detailError instanceof Error
+          ? detailError.message
+          : "KhÃ´ng thá»ƒ táº£i chi tiáº¿t Ä‘Æ¡n hÃ ng";
+      setDetailError(message);
+      toast.error(message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleCloseDetail = () => {
+    setDetailOpen(false);
+    setDetailOrder(null);
+    setDetailError(null);
+    setDetailLoading(false);
+  };
+
   const filteredOrders = useMemo(() => {
     if (activeTab === "all") return orders;
     return orders.filter((order) => order.status === activeTab);
@@ -306,6 +349,7 @@ export default function OrderHistory() {
               reviewSubmittingKey={reviewSubmittingKey}
               onReviewSubmit={handleReviewSubmit}
               onReorder={handleReorder}
+              onViewDetail={handleViewDetail}
               onContinuePayment={handleContinuePayment}
               paymentSubmittingId={paymentSubmittingId}
             />
@@ -315,6 +359,14 @@ export default function OrderHistory() {
           </p>
         </>
       )}
+
+      <OrderDetailModal
+        open={detailOpen}
+        order={detailOrder}
+        loading={detailLoading}
+        error={detailError}
+        onClose={handleCloseDetail}
+      />
     </div>
   );
 }
