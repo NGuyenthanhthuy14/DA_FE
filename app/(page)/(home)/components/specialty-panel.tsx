@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
+import { BiChevronDown, BiMapPin, BiStore } from "react-icons/bi";
 
 import { Shop } from "@/app/types/api/specialtyShop";
 import { MapFocusTarget } from "@/app/types/mapFocus";
@@ -18,6 +20,14 @@ type ShopFocusInfo = {
   shopSlug?: string;
 };
 
+type ShopDropdownInfo = ShopFocusInfo & {
+  key: string;
+  name: string;
+  address: string;
+  coverImage: string;
+  distanceKm?: number;
+};
+
 type SpecialtySummary = {
   key: string;
   name: string;
@@ -27,6 +37,7 @@ type SpecialtySummary = {
   shopCount: number;
   /** Tọa độ tất cả shop có đặc sản này */
   focusTargets: ShopFocusInfo[];
+  shops: ShopDropdownInfo[];
 };
 
 type RawSpecialty = Shop["specialties"][number] | string;
@@ -42,6 +53,28 @@ const getShopFocusInfo = (shop: Shop): ShopFocusInfo | undefined => {
     lat: shop.latitude,
     lng: shop.longitude,
     shopSlug: shopSlug || undefined,
+  };
+};
+
+const getShopDropdownInfo = (
+  shop: Shop,
+  specialty: RawSpecialty,
+): ShopDropdownInfo | undefined => {
+  const focusInfo = getShopFocusInfo(shop);
+  if (!focusInfo) return undefined;
+
+  const distanceKm =
+    typeof specialty !== "string" && Number.isFinite(specialty.distanceKm)
+      ? specialty.distanceKm
+      : undefined;
+
+  return {
+    ...focusInfo,
+    key: shop.idShop || shop.slug || `${shop.latitude}-${shop.longitude}`,
+    name: shop.name,
+    address: shop.formatted_address || shop.address,
+    coverImage: shop.cover_image,
+    distanceKm,
   };
 };
 
@@ -67,6 +100,7 @@ const buildSpecialtySummaries = (
           `name:${name.toLowerCase()}`;
 
       const shopFocus = getShopFocusInfo(shop);
+      const dropdownShop = getShopDropdownInfo(shop, specialty);
       const summary = specialtyMap.get(key);
       if (!summary) {
         specialtyMap.set(key, {
@@ -81,6 +115,7 @@ const buildSpecialtySummaries = (
             : Boolean(specialty.is_featured),
           shopCount: 1,
           focusTargets: shopFocus ? [shopFocus] : [],
+          shops: dropdownShop ? [dropdownShop] : [],
         });
         continue;
       }
@@ -94,6 +129,12 @@ const buildSpecialtySummaries = (
       }
       if (!summary.imageUrl && !isStringSpecialty) {
         summary.imageUrl = specialty.image_url?.trim() || "";
+      }
+      if (
+        dropdownShop &&
+        !summary.shops.some((item) => item.key === dropdownShop.key)
+      ) {
+        summary.shops.push(dropdownShop);
       }
       summary.isFeatured =
         summary.isFeatured ||
@@ -114,6 +155,9 @@ export default function SpecialtyPanel({
   const specialtiesOnly = buildSpecialtySummaries(shopSpecialtiesData);
   const shouldScroll = specialtiesOnly.length > 5;
   const [selectedSpecialtyKey, setSelectedSpecialtyKey] = useState<
+    string | null
+  >(null);
+  const [expandedSpecialtyKey, setExpandedSpecialtyKey] = useState<
     string | null
   >(null);
 
@@ -165,81 +209,174 @@ export default function SpecialtyPanel({
           ) : specialtiesOnly.length > 0 ? (
             specialtiesOnly.map((specialty) => {
               const isSelected = activeSpecialtyKey === specialty.key;
+              const isExpanded = expandedSpecialtyKey === specialty.key;
+
+              const focusSpecialty = () => {
+                setSelectedSpecialtyKey(specialty.key);
+
+                if (specialty.focusTargets.length > 0) {
+                  const firstShop = specialty.focusTargets[0];
+                  onFocusMarker?.({
+                    lat: firstShop.lat,
+                    lng: firstShop.lng,
+                    shopSlug: firstShop.shopSlug,
+                    allShops: specialty.focusTargets,
+                  });
+                }
+              };
 
               return (
-                <button
+                <div
                   key={specialty.key}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => {
-                    setSelectedSpecialtyKey(specialty.key);
-
-                    if (specialty.focusTargets.length > 0) {
-                      const firstShop = specialty.focusTargets[0];
-                      onFocusMarker?.({
-                        lat: firstShop.lat,
-                        lng: firstShop.lng,
-                        shopSlug: firstShop.shopSlug,
-                        allShops: specialty.focusTargets,
-                      });
-                    }
-                  }}
-                  className={`group w-full rounded-2xl px-4 py-3 text-left transition ${
+                  className={`overflow-hidden rounded-2xl transition ${
                     isSelected
                       ? "border border-amber-400 bg-amber-50 shadow-sm ring-2 ring-amber-200"
                       : "border border-amber-100 bg-primary-soft hover:border-amber-300 hover:bg-background"
                   }`}
                 >
-                  <div className="flex items-center gap-3 ">
-                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-amber-100 bg-white">
-                      {specialty.imageUrl ? (
-                        <img
-                          src={specialty.imageUrl}
-                          alt={specialty.name}
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-xs font-bold uppercase tracking-wide text-amber-700">
-                          {specialty.name.slice(0, 2)}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <p
-                          className={`truncate text-sm font-semibold md:text-base ${
-                            isSelected ? "text-primary" : "text-dark"
-                          }`}
-                        >
-                          {specialty.name}
-                        </p>
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm ${
-                            isSelected
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-white text-primary"
-                          }`}
-                        >
-                          {specialty.shopCount > 99 ? "99+" : specialty.shopCount}{" "}
-                          quán
-                        </span>
+                  <button
+                    type="button"
+                    aria-expanded={isExpanded}
+                    aria-pressed={isSelected}
+                    onClick={() => {
+                      focusSpecialty();
+                      setExpandedSpecialtyKey((current) =>
+                        current === specialty.key ? null : specialty.key,
+                      );
+                    }}
+                    className="group w-full px-4 py-3 text-left"
+                  >
+                    <div className="flex items-center gap-3 ">
+                      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-amber-100 bg-white">
+                        {specialty.imageUrl ? (
+                          <img
+                            src={specialty.imageUrl}
+                            alt={specialty.name}
+                            loading="lazy"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-xs font-bold uppercase tracking-wide text-amber-700">
+                            {specialty.name.slice(0, 2)}
+                          </span>
+                        )}
                       </div>
 
-                      <p className="mt-1 line-clamp-2 text-xs text-stone-500 md:text-sm">
-                        {specialty.description ||
-                          "Món đặc sản nổi bật được nhiều quán trong khu vực phục vụ."}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p
+                            className={`truncate text-sm font-semibold md:text-base ${
+                              isSelected ? "text-primary" : "text-dark"
+                            }`}
+                          >
+                            {specialty.name}
+                          </p>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm ${
+                                isSelected
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-white text-primary"
+                              }`}
+                            >
+                              {specialty.shopCount > 99
+                                ? "99+"
+                                : specialty.shopCount}{" "}
+                              quán
+                            </span>
+                            <BiChevronDown
+                              className={`text-xl text-amber-700 transition-transform ${
+                                isExpanded ? "rotate-180" : ""
+                              }`}
+                            />
+                          </div>
+                        </div>
 
-                      {specialty.isFeatured ? (
-                        <span className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                          Nổi bật
-                        </span>
-                      ) : null}
+                        <p className="mt-1 line-clamp-2 text-xs text-stone-500 md:text-sm">
+                          {specialty.description ||
+                            "Món đặc sản nổi bật được nhiều quán trong khu vực phục vụ."}
+                        </p>
+
+                        {specialty.isFeatured ? (
+                          <span className="mt-2 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                            Nổi bật
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+
+                  {isExpanded ? (
+                    <div className="border-t border-amber-100 bg-white/70 px-4 py-3">
+                      <div className="space-y-2">
+                        {specialty.shops.length > 0 ? (
+                          specialty.shops.map((shop) => (
+                            <div
+                              key={shop.key}
+                              className="flex items-center gap-3 rounded-xl border border-amber-100 bg-white p-2"
+                            >
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-amber-50 text-amber-700">
+                                {shop.coverImage ? (
+                                  <img
+                                    src={shop.coverImage}
+                                    alt={shop.name}
+                                    loading="lazy"
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <BiStore className="text-xl" />
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedSpecialtyKey(specialty.key);
+                                  onFocusMarker?.({
+                                    lat: shop.lat,
+                                    lng: shop.lng,
+                                    shopSlug: shop.shopSlug,
+                                    allShops: [shop],
+                                  });
+                                }}
+                                className="min-w-0 flex-1 text-left"
+                              >
+                                <span className="block truncate text-sm font-semibold text-dark">
+                                  {shop.name}
+                                </span>
+                                <span className="mt-0.5 flex items-center gap-1 text-xs text-stone-500">
+                                  <BiMapPin className="shrink-0 text-primary" />
+                                  <span className="truncate">
+                                    {shop.address || "Chưa có địa chỉ"}
+                                  </span>
+                                </span>
+                              </button>
+
+                              {Number.isFinite(shop.distanceKm) ? (
+                                <span className="shrink-0 rounded-full bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                                  {shop.distanceKm?.toFixed(1)} km
+                                </span>
+                              ) : null}
+
+                              {shop.shopSlug ? (
+                                <Link
+                                  href={`/stores/${shop.shopSlug}`}
+                                  className="shrink-0 rounded-full border border-amber-200 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-amber-50"
+                                >
+                                  Xem
+                                </Link>
+                              ) : null}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="rounded-xl bg-white px-3 py-2 text-sm text-stone-500">
+                            Chưa có shop phù hợp
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               );
             })
           ) : (

@@ -2,22 +2,66 @@ import { useEffect, useState } from "react";
 import { Product, ProductsResponse, NearbyProduct } from "../types/api/product";
 import { getAllProduct, getNearbyProducts, getProductById } from "@/apiRequest/product";
 
-export const useProduct = () => {
-	const [product, setProduct] = useState<ProductsResponse | null>(null);
+let productsRequest: Promise<ProductsResponse> | null = null;
+let productsCache: ProductsResponse | null = null;
+const nearbyProductsRequests = new Map<string, Promise<NearbyProduct[]>>();
+const nearbyProductsCache = new Map<string, NearbyProduct[]>();
 
-	const getProduct = async () => {
-		try {
-			const res = await getAllProduct();
-			setProduct(res);
-		} catch (error) {
-			console.error("Error fetching product data:", error);
-			return null;
-		}
-	};
+const loadProducts = async () => {
+	if (productsCache) return productsCache;
+	if (!productsRequest) {
+		productsRequest = getAllProduct().then((res) => {
+			productsCache = res;
+			return res;
+		});
+	}
+
+	return productsRequest;
+};
+
+const loadNearbyProducts = async (lat: number, lng: number) => {
+	const key = `${lat},${lng}`;
+	const cached = nearbyProductsCache.get(key);
+	if (cached) return cached;
+
+	if (!nearbyProductsRequests.has(key)) {
+		nearbyProductsRequests.set(
+			key,
+			getNearbyProducts(lat, lng, 20, 20).then((res) => {
+				const data = res.err === 0 ? res.data : [];
+				nearbyProductsCache.set(key, data);
+				return data;
+			}),
+		);
+	}
+
+	return nearbyProductsRequests.get(key) as Promise<NearbyProduct[]>;
+};
+
+export const useProduct = (enabled = true) => {
+	const [product, setProduct] = useState<ProductsResponse | null>(() =>
+		enabled ? productsCache : null,
+	);
 
 	useEffect(() => {
+		if (!enabled) return;
+
+		if (productsCache) {
+			void Promise.resolve().then(() => setProduct(productsCache));
+			return;
+		}
+
+		const getProduct = async () => {
+			try {
+				const res = await loadProducts();
+				setProduct(res);
+			} catch (error) {
+				console.error("Error fetching product data:", error);
+			}
+		};
+
 		getProduct();
-	}, []);
+	}, [enabled]);
 
 	return {
 		product,
@@ -27,19 +71,26 @@ export const useProduct = () => {
 export const useNearbyProducts = (lat: number | null, lng: number | null) => {
 	const [nearbyProducts, setNearbyProducts] = useState<NearbyProduct[]>([]);
 	const [loading, setLoading] = useState(false);
+	const [hasFetchedNearby, setHasFetchedNearby] = useState(false);
 
 	useEffect(() => {
-		if (lat === null || lng === null) return;
+		if (lat === null || lng === null) {
+			setNearbyProducts([]);
+			setHasFetchedNearby(false);
+			setLoading(false);
+			return;
+		}
 
 		const fetchNearby = async () => {
 			setLoading(true);
 			try {
-				const res = await getNearbyProducts(lat, lng, 20, 20);
-				if (res.err === 0) {
-					setNearbyProducts(res.data);
-				}
+				const data = await loadNearbyProducts(lat, lng);
+				setNearbyProducts(data);
+				setHasFetchedNearby(true);
 			} catch (error) {
 				console.error("Error fetching nearby products:", error);
+				setNearbyProducts([]);
+				setHasFetchedNearby(true);
 			} finally {
 				setLoading(false);
 			}
@@ -51,6 +102,7 @@ export const useNearbyProducts = (lat: number | null, lng: number | null) => {
 	return {
 		nearbyProducts,
 		nearbyProductsLoading: loading,
+		hasFetchedNearby,
 	};
 };
 

@@ -3,8 +3,8 @@
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { BiMap, BiMapPin } from "react-icons/bi";
-import { useShopAPI } from "@/app/services/useShop";
 import { MapFocusTarget } from "@/app/types/mapFocus";
+import type { Shop } from "@/app/types/api/shops";
 
 const GoongMap = dynamic(() => import("../../../components/GoongMap"), {
   ssr: false,
@@ -18,19 +18,19 @@ type Coordinates = {
 interface MapPanelProps {
   location: Coordinates | null;
   focusedMarker: MapFocusTarget | null;
+  shops: Shop[];
 }
 
 export default function MapPanel({
   location,
   address,
   focusedMarker,
+  shops,
 }: MapPanelProps & { address: string }) {
   const hasValidLocation = (
     value: Coordinates | null,
   ): value is Coordinates =>
     value !== null && Number.isFinite(value.lat) && Number.isFinite(value.lng);
-
-  const { shop } = useShopAPI();
 
   return (
     <motion.div
@@ -58,7 +58,7 @@ export default function MapPanel({
         {hasValidLocation(location) ? (
           <GoongMap
             location={location}
-            shops={shop?.metadata || []}
+            shops={shops}
             focusedMarker={focusedMarker}
           />
         ) : (

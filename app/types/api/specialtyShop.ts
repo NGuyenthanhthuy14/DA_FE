@@ -15,6 +15,7 @@ export interface Specialty {
   created_at?: string;
   updated_at?: string;
   is_featured?: boolean;
+  distanceKm?: number;
 }
 
 export interface Shop {
@@ -42,4 +43,40 @@ export interface GetShopsWithSpecialtiesResponse {
   error: string | null;
   message: string;
   metadata: Shop[];
+}
+
+export interface NearbySpecialtyShop {
+  _id: string;
+  name: string;
+  slug: string;
+  address: string;
+  formatted_address: string;
+  cover_image: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface NearbySpecialty {
+  _id: string;
+  name: string;
+  slug: string;
+  description: string;
+  image_url: string;
+  approval_status?: "pending" | "approved" | "rejected";
+  status?: "active" | "inactive";
+  created_at?: string;
+  updated_at?: string;
+  distanceKm?: number;
+  shop: NearbySpecialtyShop;
+}
+
+export interface GetNearbySpecialtiesResponse {
+  statusCode: number;
+  error: string | null;
+  message: string;
+  metadata: {
+    specialties: NearbySpecialty[];
+    total: number;
+    radiusKm: number;
+  };
 }

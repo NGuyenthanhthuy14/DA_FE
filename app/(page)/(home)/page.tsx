@@ -11,6 +11,7 @@ import NearbyProductsSection from "./components/nearby-products-section";
 import { useNearbyProducts, useProduct } from "@/app/services/useProduct";
 import { useShopAPI } from "@/app/services/useShop";
 import type { NearbyProduct, NearbyProductShop } from "@/app/types/api/product";
+import type { Shop } from "@/app/types/api/shops";
 
 type Coordinates = {
   lat: number;
@@ -21,18 +22,18 @@ export default function HomePage() {
   const [location, setLocation] = useState<Coordinates | null>(null);
   const [address, setAddress] = useState<string>("Đang xác định vị trí...");
   const [overview, setOverview] = useState<HomeOverview | null>(null);
-  const [overviewLoading, setOverviewLoading] = useState(false);
   const [locationFailed, setLocationFailed] = useState(false);
 
   // Nearby products (GPS-based)
-  const { nearbyProducts, nearbyProductsLoading } = useNearbyProducts(
-    location?.lat ?? null,
-    location?.lng ?? null,
-  );
+  const { nearbyProducts, nearbyProductsLoading, hasFetchedNearby } =
+    useNearbyProducts(location?.lat ?? null, location?.lng ?? null);
 
-  // Fallback: tất cả sản phẩm & cửa hàng (không cần GPS)
-  const { product: allProductsRes } = useProduct();
-  const { shop: allShopsRes } = useShopAPI();
+  const shouldLoadFallbackData =
+    locationFailed || (hasFetchedNearby && nearbyProducts.length === 0);
+
+  // Fallback chỉ chạy khi nearby không có dữ liệu hoặc không lấy được vị trí.
+  const { product: allProductsRes } = useProduct(shouldLoadFallbackData);
+  const { shop: allShopsRes } = useShopAPI(shouldLoadFallbackData);
 
   // Chuyển đổi Product[] thành NearbyProduct[] để dùng chung component
   const allProductsAsNearby: NearbyProduct[] = useMemo(() => {
@@ -69,7 +70,7 @@ export default function HomePage() {
   // Dùng nearby nếu có, nếu không dùng tất cả
   const hasNearby = nearbyProducts.length > 0;
   const displayProducts = hasNearby ? nearbyProducts : allProductsAsNearby;
-  const isProductsLoading = hasNearby ? nearbyProductsLoading : !allProductsRes;
+  const isProductsLoading = nearbyProductsLoading || (shouldLoadFallbackData && !allProductsRes);
 
   // Lấy danh sách shop từ displayProducts
   const displayShopsFromProducts: NearbyProductShop[] = useMemo(() => {
@@ -101,7 +102,29 @@ export default function HomePage() {
     displayShopsFromProducts.length > 0
       ? displayShopsFromProducts
       : allShopsAsFallback;
-  const isShopsLoading = !allShopsRes && !hasNearby;
+  const isShopsLoading =
+    nearbyProductsLoading || (shouldLoadFallbackData && !allShopsRes && !hasNearby);
+
+  const mapShops: Shop[] = useMemo(
+    () =>
+      displayShops.map((shop) => ({
+        _id: shop._id,
+        owner_id: "",
+        name: shop.name,
+        slug: shop.slug,
+        description: "",
+        phone: "",
+        cover_image: shop.cover_image,
+        latitude: shop.latitude,
+        longitude: shop.longitude,
+        address: shop.address,
+        formatted_address: shop.formatted_address,
+        status: "active",
+        created_at: "",
+        updated_at: "",
+      })),
+    [displayShops],
+  );
 
   const getCurrentLocation = () => {
     return new Promise<Coordinates>((resolve, reject) => {
@@ -206,22 +229,19 @@ export default function HomePage() {
 
     const controller = new AbortController();
 
-    setOverviewLoading(true);
-
     void loadHomeOverview(location.lat, location.lng, controller.signal)
       .then((data) => setOverview(data))
       .catch((err) => {
         console.error("Error loading home overview:", err);
         setOverview(null);
-      })
-      .finally(() => setOverviewLoading(false));
+      });
 
     return () => controller.abort();
   }, [location]);
 
   return (
     <>
-      <HeroBanner location={location} address={address} />
+      <HeroBanner location={location} address={address} shops={mapShops} />
 
       <SearchSection />
 

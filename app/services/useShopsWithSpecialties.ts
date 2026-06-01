@@ -1,33 +1,16 @@
 import { useEffect, useState } from "react";
 import {
   GetShopsWithSpecialtiesResponse,
+  NearbySpecialty,
   Shop as SpecialtyShop,
-  Specialty,
 } from "../types/api/specialtyShop";
-import { getShopsWithSpecialties } from "@/apiRequest/specialtyShop";
-import { getShops } from "@/apiRequest/shops";
-import { getAllProduct } from "@/apiRequest/product";
-import {
-  SpecialtyCatalogItem,
-  getAllSpecialties,
-} from "@/apiRequest/specialty";
-import { Product } from "../types/api/product";
-import { Shop } from "../types/api/shops";
+import { getNearbySpecialties } from "@/apiRequest/specialtyShop";
 
-const GEOLOCATION_TIMEOUT_MS = 4000;
-
-const hasMetadata = (
-  response: GetShopsWithSpecialtiesResponse | undefined,
-): response is GetShopsWithSpecialtiesResponse =>
-  Array.isArray(response?.metadata) && response.metadata.length > 0;
-
-const hasAnySpecialties = (
-  response: GetShopsWithSpecialtiesResponse | undefined,
-): response is GetShopsWithSpecialtiesResponse =>
-  Array.isArray(response?.metadata) &&
-  response.metadata.some(
-    (shop) => Array.isArray(shop.specialties) && shop.specialties.length > 0,
-  );
+const nearbySpecialtiesRequests = new Map<
+  string,
+  Promise<GetShopsWithSpecialtiesResponse>
+>();
+const nearbySpecialtiesCache = new Map<string, GetShopsWithSpecialtiesResponse>();
 
 const toPlainString = (value: unknown): string => {
   if (typeof value === "string") return value.trim();
@@ -59,223 +42,129 @@ const buildFallbackSlug = (name: string, id: string): string => {
   return normalized || `specialty-${id}`;
 };
 
-const normalizeCatalogSpecialty = (
-  item: SpecialtyCatalogItem,
-): Specialty | null => {
-  const id = toPlainString(item._id);
-  const name = toPlainString(item.name);
+const mapNearbySpecialtiesToShopShape = (
+  nearbySpecialties: NearbySpecialty[],
+): SpecialtyShop[] => {
+  const shopsById = new Map<string, SpecialtyShop>();
 
-  if (!id || !name) return null;
+  for (const item of nearbySpecialties) {
+    const shop = item.shop;
+    const shopId = toPlainString(shop?._id);
+    const specialtyId = toPlainString(item._id);
+    const specialtyName = toPlainString(item.name);
 
-  const slug = toPlainString(item.slug) || buildFallbackSlug(name, id);
+    if (!shopId || !specialtyId || !specialtyName) continue;
 
-  return {
-    idSpecialties: id,
-    name,
-    slug,
-    description: toPlainString(item.description),
-    image_url: toPlainString(item.image_url),
-    approval_status: item.approval_status,
-    status: item.status,
-    rejected_reason: toPlainString(item.rejected_reason),
-    created_by: toPlainString(item.created_by) || null,
-    created_by_role: item.created_by_role ?? null,
-    shop_id: toPlainString(item.shop_id) || null,
-    reviewed_by: toPlainString(item.reviewed_by) || null,
-    reviewed_at: toPlainString(item.reviewed_at),
-    created_at: toPlainString(item.created_at),
-    updated_at: toPlainString(item.updated_at),
-    is_featured: false,
-  };
-};
-
-const mapShopToSpecialtyShape = (shop: Shop): SpecialtyShop => ({
-  idShop: toPlainString(shop._id),
-  name: toPlainString(shop.name),
-  slug: toPlainString(shop.slug),
-  phone: toPlainString(shop.phone),
-  cover_image: toPlainString(shop.cover_image),
-  latitude: toSafeNumber(shop.latitude),
-  longitude: toSafeNumber(shop.longitude),
-  address: toPlainString(shop.address),
-  formatted_address: toPlainString(shop.formatted_address),
-  status: shop.status === "inactive" ? "inactive" : "active",
-  specialties: [],
-});
-
-const buildFallbackFromProducts = async (): Promise<
-  GetShopsWithSpecialtiesResponse | undefined
-> => {
-  try {
-    const [shopsRes, productsRes, specialtiesRes] = await Promise.all([
-      getShops(),
-      getAllProduct(),
-      getAllSpecialties(),
-    ]);
-
-    const catalog = Array.isArray(specialtiesRes?.metadata)
-      ? specialtiesRes.metadata
-      : [];
-    const normalizedSpecialties = catalog
-      .map(normalizeCatalogSpecialty)
-      .filter((item): item is Specialty => item !== null);
-
-    if (!normalizedSpecialties.length) return undefined;
-
-    const specialtyById = new Map(
-      normalizedSpecialties.map((item) => [item.idSpecialties, item]),
-    );
-    const rawShops = Array.isArray(shopsRes?.metadata) ? shopsRes.metadata : [];
-    const products = Array.isArray(productsRes?.data) ? productsRes.data : [];
-
-    if (!rawShops.length) {
-      return {
-        statusCode: 200,
-        error: null,
-        message: "Fallback specialties catalog",
-        metadata: [
-          {
-            idShop: "fallback-specialties",
-            name: "Đặc sản Việt",
-            slug: "dac-san-viet",
-            phone: "",
-            cover_image: "",
-            latitude: Number.NaN,
-            longitude: Number.NaN,
-            address: "",
-            formatted_address: "",
-            status: "active",
-            specialties: normalizedSpecialties,
-          },
-        ],
-      };
+    if (!shopsById.has(shopId)) {
+      shopsById.set(shopId, {
+        idShop: shopId,
+        name: toPlainString(shop.name),
+        slug: toPlainString(shop.slug),
+        phone: "",
+        cover_image: toPlainString(shop.cover_image),
+        latitude: toSafeNumber(shop.latitude),
+        longitude: toSafeNumber(shop.longitude),
+        address: toPlainString(shop.address),
+        formatted_address: toPlainString(shop.formatted_address),
+        status: "active",
+        specialties: [],
+      });
     }
 
-    const specialtyShops = rawShops.map(mapShopToSpecialtyShape);
-    const specialtiesByShop = new Map<string, Map<string, Specialty>>();
-
-    for (const product of products as Product[]) {
-      const shopId = toPlainString(product.shop_id);
-      const specialtyId = toPlainString(product.specialty_id);
-      if (!shopId || !specialtyId) continue;
-
-      const specialty = specialtyById.get(specialtyId);
-      if (!specialty) continue;
-
-      if (!specialtiesByShop.has(shopId)) {
-        specialtiesByShop.set(shopId, new Map<string, Specialty>());
-      }
-      specialtiesByShop.get(shopId)?.set(specialty.idSpecialties, specialty);
-    }
-
-    let hasLinkedSpecialties = false;
-    const mergedShops = specialtyShops.map((shop) => {
-      const mapped = specialtiesByShop.get(shop.idShop);
-      const specialties = mapped ? Array.from(mapped.values()) : [];
-      if (specialties.length > 0) hasLinkedSpecialties = true;
-      return { ...shop, specialties };
+    shopsById.get(shopId)?.specialties.push({
+      idSpecialties: specialtyId,
+      name: specialtyName,
+      slug:
+        toPlainString(item.slug) || buildFallbackSlug(specialtyName, specialtyId),
+      description: toPlainString(item.description),
+      image_url: toPlainString(item.image_url),
+      approval_status: item.approval_status,
+      status: item.status,
+      created_at: toPlainString(item.created_at),
+      updated_at: toPlainString(item.updated_at),
+      is_featured: false,
+      distanceKm: toSafeNumber(item.distanceKm),
     });
-
-    if (!hasLinkedSpecialties && mergedShops.length > 0) {
-      const firstWithCoord = mergedShops.findIndex(
-        (shop) =>
-          Number.isFinite(shop.latitude) && Number.isFinite(shop.longitude),
-      );
-      const targetIndex = firstWithCoord >= 0 ? firstWithCoord : 0;
-      mergedShops[targetIndex] = {
-        ...mergedShops[targetIndex],
-        specialties: normalizedSpecialties,
-      };
-    }
-
-    return {
-      statusCode: 200,
-      error: null,
-      message: "Fallback specialties from products/specialties",
-      metadata: mergedShops,
-    };
-  } catch (error) {
-    console.error("Error building specialty fallback:", error);
-    return undefined;
   }
+
+  return Array.from(shopsById.values());
 };
 
-const getUserCoordinates = async (): Promise<
-  { lat: number; lng: number } | undefined
-> => {
-  if (!navigator.geolocation) return undefined;
+const loadNearbySpecialties = async (
+  lat: number,
+  lng: number,
+): Promise<GetShopsWithSpecialtiesResponse> => {
+  const key = `${lat},${lng}`;
+  const cached = nearbySpecialtiesCache.get(key);
+  if (cached) return cached;
 
-  return await new Promise((resolve) => {
-    let done = false;
+  if (!nearbySpecialtiesRequests.has(key)) {
+    nearbySpecialtiesRequests.set(
+      key,
+      getNearbySpecialties({ lat, lng }).then((nearbyResponse) => {
+        const nearbySpecialties = Array.isArray(
+          nearbyResponse?.metadata?.specialties,
+        )
+          ? nearbyResponse.metadata.specialties
+          : [];
 
-    const finish = (value: { lat: number; lng: number } | undefined) => {
-      if (done) return;
-      done = true;
-      resolve(value);
-    };
+        const response = {
+          statusCode: nearbyResponse.statusCode,
+          error: nearbyResponse.error,
+          message: nearbyResponse.message,
+          metadata: mapNearbySpecialtiesToShopShape(nearbySpecialties),
+        };
 
-    const timer = window.setTimeout(() => {
-      console.warn("Geolocation timeout -> fallback lấy toàn bộ quán");
-      finish(undefined);
-    }, GEOLOCATION_TIMEOUT_MS);
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        window.clearTimeout(timer);
-        finish({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
-      },
-      () => {
-        window.clearTimeout(timer);
-        finish(undefined);
-      },
-      {
-        timeout: GEOLOCATION_TIMEOUT_MS,
-        maximumAge: 60_000,
-      },
+        nearbySpecialtiesCache.set(key, response);
+        return response;
+      }),
     );
-  });
+  }
+
+  return nearbySpecialtiesRequests.get(
+    key,
+  ) as Promise<GetShopsWithSpecialtiesResponse>;
 };
 
-export const useShopsWithSpecialties = () => {
+export const useShopsWithSpecialties = (coords?: {
+  lat?: number | null;
+  lng?: number | null;
+}) => {
   const [shopSpecialties, setShopSpecialties] =
     useState<GetShopsWithSpecialtiesResponse>();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const hasBrowserCoords =
+      Number.isFinite(coords?.lat) && Number.isFinite(coords?.lng);
+
+    if (!hasBrowserCoords) {
+      setShopSpecialties(undefined);
+      setLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       try {
-        const coords = await getUserCoordinates();
-        let response = await getShopsWithSpecialties(coords);
+        setLoading(true);
 
-        // Nếu query theo GPS ra rỗng thì fallback lấy toàn bộ quán để luôn có dữ liệu hiển thị.
-        if (coords && !hasAnySpecialties(response)) {
-          response = await getShopsWithSpecialties();
-        }
-
-        if (!hasAnySpecialties(response)) {
-          const fallbackResponse = await buildFallbackFromProducts();
-          if (
-            fallbackResponse &&
-            (hasAnySpecialties(fallbackResponse) || hasMetadata(fallbackResponse))
-          ) {
-            response = fallbackResponse;
-          }
-        }
+        const response = await loadNearbySpecialties(
+          Number(coords?.lat),
+          Number(coords?.lng),
+        );
 
         setShopSpecialties(response);
       } catch (err) {
-        console.error("Error fetching shops with specialties:", err);
+        console.error("Error fetching nearby specialties:", err);
+        setShopSpecialties(undefined);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [coords?.lat, coords?.lng]);
 
   return { shopSpecialties, loading };
 };

@@ -5,6 +5,7 @@ import { useShopsWithSpecialties } from "@/app/services/useShopsWithSpecialties"
 import SpecialtyPanel from "./specialty-panel";
 import MapPanel from "./map-panel";
 import { MapFocusTarget } from "@/app/types/mapFocus";
+import type { Shop } from "@/app/types/api/shops";
 
 type Coordinates = {
   lat: number;
@@ -14,11 +15,16 @@ type Coordinates = {
 export default function HeroBanner({
   location,
   address,
+  shops,
 }: {
   location: Coordinates | null;
   address: string;
+  shops: Shop[];
 }) {
-  const { shopSpecialties, loading } = useShopsWithSpecialties();
+  const { shopSpecialties, loading } = useShopsWithSpecialties({
+    lat: location?.lat,
+    lng: location?.lng,
+  });
   const [focusedMarker, setFocusedMarker] = useState<MapFocusTarget | null>(
     null,
   );
@@ -38,6 +44,7 @@ export default function HeroBanner({
             location={location}
             address={address}
             focusedMarker={focusedMarker}
+            shops={shops}
           />
           <SpecialtyPanel
             shopSpecialtiesData={shopSpecialtiesData}
