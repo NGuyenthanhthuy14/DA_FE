@@ -13,7 +13,7 @@ export default function SpecialtyBreadcrumb({ name }: SpecialtyBreadcrumbProps) 
           <BiHome className="text-base" /> Trang chủ
         </Link>
         <BiChevronRight />
-        <Link href="/specialties" className="hover:text-primary">Đặc sản theo vùng</Link>
+        <Link href="/specialties" className="hover:text-primary">Câu chuyện đặc sản</Link>
         <BiChevronRight />
         <span className="font-medium text-dark">{name}</span>
       </nav>

@@ -1,124 +1,170 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useCallback, useState } from "react";
-import type { Shop as SpecialtyShop, Specialty } from "@/app/types/api/specialtyShop";
-import { getShopsWithSpecialties } from "@/apiRequest/specialtyShop";
-
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import HeroSection from "./components/hero-section";
 import SpecialtyGrid from "./components/specialty-grid";
 import StorySection from "./components/story-section";
-import TrustBadges from "../products/[slug]/components/trust-badges";
-import { getRegionFromAddress, type Region } from "@/app/utils/regionMap";
+import { useProduct } from "@/app/services/useProduct";
+import { useNearbySpecialtyStories } from "@/app/services/useNearbySpecialtyStories";
+import type { NearbySpecialtyStory } from "@/app/types/api/specialtyStory";
 
-function SpecialtySkeleton() {
+function StorySkeleton() {
   return (
-    <div className="space-y-8">
-      <div className="h-72 animate-pulse rounded-3xl bg-gray-100" />
-
-      <div className="flex gap-5 overflow-hidden">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-72 w-56 shrink-0 animate-pulse rounded-2xl bg-gray-100" />
+    <div className="space-y-6">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-[24rem] animate-pulse rounded-2xl border border-amber-100 bg-white"
+          />
         ))}
       </div>
+
+      <div className="h-[28rem] animate-pulse rounded-3xl border border-amber-100 bg-white" />
     </div>
   );
 }
 
 export default function SpecialtiesPage() {
-  const [shops, setShops] = useState<SpecialtyShop[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [locationMessage, setLocationMessage] = useState("Đang lấy vị trí...");
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
 
-  const [selectedSpecialty, setSelectedSpecialty] = useState<
-    { specialty: Specialty; shopName: string; region: Region | null } | undefined
-  >(undefined);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const { product } = useProduct();
 
-  const [shopRegions, setShopRegions] = useState<Record<string, Region | null>>({});
+  const requestLocation = useCallback(() => {
+    setLocationLoading(true);
 
-  const storyRef = useRef<HTMLDivElement>(null);
+    if (!navigator.geolocation) {
+      setCoords(null);
+      setLocationMessage("Trình duyệt không hỗ trợ định vị.");
+      setLocationLoading(false);
+      return;
+    }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const res = await getShopsWithSpecialties();
-        setShops(res.metadata || []);
-      } catch (err) {
-        console.error("Error fetching specialties:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocationMessage("Vị trí của bạn đã sẵn sàng.");
+        setLocationLoading(false);
+      },
+      (error) => {
+        const message =
+          error.code === 1
+            ? "Bạn đã từ chối quyền truy cập vị trí."
+            : error.code === 2
+              ? "Không thể lấy vị trí hiện tại."
+              : error.code === 3
+                ? "Hết thời gian lấy vị trí."
+                : "Không thể lấy vị trí hiện tại.";
+
+        setCoords(null);
+        setLocationMessage(message);
+        setLocationLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      },
+    );
   }, []);
 
   useEffect(() => {
-    if (!shops.length) return;
-    let cancelled = false;
+    const id = window.setTimeout(requestLocation, 0);
+    return () => window.clearTimeout(id);
+  }, [requestLocation]);
 
-    Promise.all(
-      shops.map(async (shop) => {
-        const address = shop.formatted_address || shop.address || "";
-        const region = await getRegionFromAddress(address);
-        console.log(`[Region] "${address}" → ${region}`);
-        return { id: shop.idShop, region };
-      })
-    ).then((results) => {
-      if (cancelled) return;
-      const map: Record<string, Region | null> = {};
-      for (const r of results) map[r.id] = r.region;
-      setShopRegions(map);
-    });
+  const {
+    stories,
+    total,
+    loading: storiesLoading,
+    error: storyError,
+  } = useNearbySpecialtyStories(coords?.lat ?? null, coords?.lng ?? null, undefined, 12);
 
-    return () => { cancelled = true; };
-  }, [shops]);
+  const selectedStory = useMemo<NearbySpecialtyStory | null>(() => {
+    if (!stories.length) return null;
+    return stories.find((story) => story.slug === selectedSlug) ?? stories[0] ?? null;
+  }, [stories, selectedSlug]);
 
+  const productHrefBySpecialtyId = useMemo(() => {
+    const map = new Map<string, string>();
 
-  const allSpecialties = useMemo(() => { 
-    const seen = new Map<string, { specialty: Specialty; shopName: string; region: Region | null }>();
-    for (const shop of shops) {
-      if (!shop.specialties?.length) continue;
-      const region = shopRegions[shop.idShop] ?? null;
-      for (const spec of shop.specialties) {
-        if (!seen.has(spec.idSpecialties)) {
-          seen.set(spec.idSpecialties, { specialty: spec, shopName: shop.name, region });
-        }
-      }
+    for (const item of product?.data ?? []) {
+      if (!item.specialty_id || map.has(item.specialty_id)) continue;
+      map.set(item.specialty_id, `/products/${item._id}`);
     }
-    return Array.from(seen.values());
-  }, [shops, shopRegions]);
 
-  const handleReadStory = useCallback(
-    (item: { specialty: Specialty; shopName: string }) => {
-      setSelectedSpecialty(item as typeof selectedSpecialty);
-      setTimeout(() => {
-        window.scrollBy({ top: 500, behavior: "smooth" });
-      }, 100);
+    return map;
+  }, [product]);
+
+  const getProductHref = useCallback(
+    (story: NearbySpecialtyStory) => {
+    const productId =
+      story.product_id ||
+      (typeof story.product === "string"
+        ? story.product
+        : story.product?._id || story.product?.id);
+
+      if (productId) return `/products/${productId}`;
+
+      return (
+        productHrefBySpecialtyId.get(story.specialty._id) ||
+        productHrefBySpecialtyId.get(story.specialty_id) ||
+        "/products"
+      );
     },
-    []
+    [productHrefBySpecialtyId],
   );
 
-  const displayedSpecialty = selectedSpecialty || allSpecialties[0] || undefined;
- 
-
+  const handleReadStory = useCallback((story: NearbySpecialtyStory) => {
+    setSelectedSlug(story.slug);
+    window.requestAnimationFrame(() => {
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#fdf8f3]">
-      <HeroSection />
+      <HeroSection
+        storyCount={total}
+        loading={locationLoading}
+        locationMessage={locationMessage}
+        onRefreshLocation={requestLocation}
+      />
+
       <main className="container space-y-8 px-4 py-8 md:px-6">
-        {loading ? (
-          <SpecialtySkeleton />
+        {storyError && !storiesLoading ? (
+          <div className="rounded-2xl border border-amber-100 bg-white px-5 py-4 text-sm text-gray-600">
+            {storyError}
+          </div>
+        ) : null}
+
+        {storiesLoading ? (
+          <StorySkeleton />
         ) : (
           <>
             <SpecialtyGrid
-              specialties={allSpecialties}
+              stories={stories}
+              selectedSlug={selectedStory?.slug ?? null}
+              loading={storiesLoading}
+              total={total}
+              getProductHref={getProductHref}
               onReadStory={handleReadStory}
             />
 
-            <div ref={storyRef}>
-              <StorySection specialty={displayedSpecialty} />
+            <div ref={detailRef}>
+              <StorySection
+                story={selectedStory}
+                productHref={selectedStory ? getProductHref(selectedStory) : "/products"}
+              />
             </div>
-
-            <TrustBadges />
           </>
         )}
       </main>

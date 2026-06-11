@@ -28,7 +28,7 @@ import { useCart } from "@/app/hook/useCart";
 
 const navItems = [
     { label: "Trang chủ", href: "/", icon: BiHomeAlt },
-    { label: "Đặc sản theo vùng", href: "/specialties", icon: GiNoodles },
+    { label: "Câu chuyện đặc sản", href: "/specialties", icon: GiNoodles },
     { label: "Sản phẩm", href: "/products", icon: BiGridAlt },
     { label: "Quán ăn", href: "/stores", icon: BiStore },
     { label: "Tin tức", href: "/news", icon: BiNews },
@@ -50,7 +50,8 @@ export default function Navbar() {
     const canShowAuthenticatedUI = isClientMounted && isAuthenticated;
 
     useEffect(() => {
-        setIsClientMounted(true);
+        const id = window.setTimeout(() => setIsClientMounted(true), 0);
+        return () => window.clearTimeout(id);
     }, []);
 
     useEffect(() => {
