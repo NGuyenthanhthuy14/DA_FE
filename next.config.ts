@@ -34,6 +34,7 @@ const allowedDevOrigins = Array.from(
 
 const nextConfig: NextConfig = {
   allowedDevOrigins,
+  output: "standalone",
   images: {
     remotePatterns: [
       {

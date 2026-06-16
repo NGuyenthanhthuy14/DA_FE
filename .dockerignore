@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.gitignore
+.dockerignore
+Dockerfile
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+README.md
+CLAUDE.md
+AGENTS.md
+tsconfig.tsbuildinfo
